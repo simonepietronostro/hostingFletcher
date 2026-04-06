@@ -1,0 +1,2201 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hotel Fletcher - Gestione Personale (versione ripulita)</title>
+  <style>
+    :root {
+      --bg: #f5f7fb; --card: #ffffff; --text: #172033; --muted: #667085; --border: #dbe2ea;
+      --primary: #1d4ed8; --primary-2: #eff6ff; --ok: #166534; --ok-bg: #dcfce7;
+      --warn: #92400e; --warn-bg: #fef3c7; --bad: #991b1b; --bad-bg: #fee2e2;
+      --shadow: 0 8px 28px rgba(15, 23, 42, 0.08); --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: var(--bg); color: var(--text); }
+    .wrap { max-width: 1440px; margin: 0 auto; padding: 24px; }
+    .hero, .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .hero { padding: 22px; margin-bottom: 18px; display: grid; grid-template-columns: 1.5fr 260px; gap: 16px; align-items: end; }
+    h1 { margin: 0 0 8px; font-size: 30px; }
+    .muted { color: var(--muted); }
+    .grid-6 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+    .kpi { padding: 18px; }
+    .kpi .label { color: var(--muted); font-size: 13px; }
+    .kpi .value { font-size: 30px; font-weight: bold; margin: 8px 0 4px; }
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+    .tab-btn { border: 1px solid var(--border); background: var(--card); padding: 12px 16px; border-radius: 14px; cursor: pointer; font-weight: bold; }
+    .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .grid-2 { display: grid; grid-template-columns: 0.85fr 2.15fr; gap: 14px; }
+    #rooms .grid-2, #stays .grid-2 { grid-template-columns: 1fr; }
+    .card { padding: 18px; }
+    .card h2 { margin: 0 0 8px; font-size: 22px; }
+    .card p.head { margin-top: 0; color: var(--muted); font-size: 14px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    label { font-size: 13px; font-weight: bold; margin-bottom: 4px; display: block; }
+    input, select, textarea, button { font: inherit; }
+    input, select, textarea { width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 12px; background: white; }
+    textarea { min-height: 320px; resize: vertical; }
+    .btn { border: 0; background: var(--primary); color: white; padding: 12px 16px; border-radius: 12px; cursor: pointer; font-weight: bold; }
+    .btn.secondary { background: white; color: var(--text); border: 1px solid var(--border); }
+    .toolbar { display: grid; grid-template-columns: 1fr 220px; gap: 12px; margin-bottom: 12px; }
+    .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 14px; background: white; }
+    table { width: 100%; border-collapse: collapse; min-width: 0; table-layout: fixed; }
+    th, td { padding: 12px; border-bottom: 1px solid #edf2f7; text-align: left; vertical-align: top; font-size: 14px; }
+    th { background: #f8fafc; position: sticky; top: 0; z-index: 1; }
+    .badge { display: inline-block; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: bold; }
+    .badge.ok { background: var(--ok-bg); color: var(--ok); }
+    .badge.warn { background: var(--warn-bg); color: var(--warn); }
+    .badge.bad { background: var(--bad-bg); color: var(--bad); }
+    .history-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .history-room { border: 1px solid var(--border); border-radius: 16px; padding: 14px; background: white; }
+    .stay-item { border: 1px solid var(--border); border-radius: 14px; padding: 12px; margin-top: 10px; }
+    .invoice-item { border: 1px solid var(--border); border-radius: 14px; padding: 14px; background: white; margin-bottom: 10px; }
+    .help { margin-top: 18px; padding: 14px; border-radius: 14px; background: var(--primary-2); border: 1px solid #bfdbfe; font-size: 14px; }
+    .right { text-align: right; }
+    
+    .small { font-size: 12px; color: var(--muted); }
+    .grid-6 .kpi:nth-child(2),
+    .grid-6 .kpi:nth-child(6) { display: none; }
+
+    .link-room { color: var(--primary); cursor: pointer; text-decoration: underline; font-weight: bold; font: inherit; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 1000; }
+    .modal-backdrop.open { display: flex; }
+    .modal-card { width: min(760px, 100%); max-height: 85vh; overflow: auto; background: white; border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); padding: 18px; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .occupant-item { border: 1px solid var(--border); border-radius: 14px; padding: 12px; margin-top: 10px; background: #fff; }
+    @media (max-width: 1100px) { .grid-6, .history-grid { grid-template-columns: repeat(2, 1fr); } .grid-2, .hero { grid-template-columns: 1fr; } }
+    @media (max-width: 700px) { .grid-6, .history-grid, .form-grid, .toolbar { grid-template-columns: 1fr; } .wrap { padding: 14px; } }
+  
+    table { font-size: 13px; }
+    th, td { padding: 6px 8px !important; }
+    .card { padding: 14px !important; }
+    .inline-edit { padding: 4px 6px !important; font-size: 12px; }
+    td { white-space: nowrap; }
+    td:nth-child(1) { max-width: 160px; white-space: normal; }
+    td:nth-child(5) { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+
+    body { font-size: 0.9em; }
+    .card { padding: 12px !important; }
+    th, td { padding: 6px 8px !important; }
+    .btn { padding: 4px 8px !important; font-size: 11px; }
+    input, select, textarea { padding: 8px 10px !important; font-size: 12px !important; }
+
+/* COMPACT FIX */
+body { font-size: 0.85em !important; }
+table { font-size: 12px !important; }
+th, td { padding: 5px 6px !important; }
+.btn { font-size: 10px !important; padding: 3px 6px !important; }
+input, select, textarea { font-size: 11px !important; padding: 6px 8px !important; }
+
+/* UX IMPROVEMENTS */
+.wrap { max-width: 1520px; }
+.hero { grid-template-columns: 1.7fr 240px; }
+h1 { font-size: 24px !important; }
+.card h2 { font-size: 18px !important; }
+.card p.head { font-size: 12px !important; margin-bottom: 10px; }
+.form-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 10px !important; }
+.toolbar { grid-template-columns: 1fr 190px !important; }
+.table-wrap { overflow-x: hidden; }
+table { table-layout: auto !important; }
+th { font-size: 11px !important; text-transform: uppercase; letter-spacing: .02em; }
+tbody tr:nth-child(even) { background: #fbfcfe; }
+tbody tr:hover { background: #eef4ff; }
+td, th { white-space: normal !important; line-height: 1.25 !important; }
+td.right, th.right { white-space: nowrap !important; }
+.link-room { text-decoration: none; }
+.link-room:hover { text-decoration: underline; }
+.inline-actions, .stay-actions { display:flex; gap:4px; justify-content:flex-end; flex-wrap:wrap; }
+.room-code-pill { display:inline-flex; align-items:center; justify-content:center; min-width:54px; padding:4px 8px; border-radius:999px; background:#eef4ff; border:1px solid #c9dafc; color:#1d4ed8; font-weight:700; }
+.occ-bar { width: 88px; height: 8px; background:#eef2f7; border-radius:999px; overflow:hidden; display:inline-block; vertical-align:middle; margin-right:8px; }
+.occ-bar > span { display:block; height:100%; background:#1d4ed8; border-radius:999px; }
+.room-meta, .stay-main, .stay-meta, .stay-period { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.stay-main { margin-bottom:4px; }
+.stay-name { font-weight:700; font-size:12px; }
+.meta-chip { display:inline-flex; align-items:center; gap:4px; padding:2px 7px; border:1px solid var(--border); border-radius:999px; background:#fff; font-size:10px; color:var(--muted); }
+.period-box { display:flex; flex-direction:column; gap:3px; }
+.period-top { font-weight:700; font-size:11px; }
+.period-bottom { color:var(--muted); font-size:10px; }
+.kpi { padding: 12px !important; }
+.kpi .value { font-size: 22px !important; }
+#roomsTable td:nth-child(1) { min-width: 90px; }
+#roomsTable td:nth-child(2) { min-width: 180px; }
+#staysTable td:nth-child(1) { min-width: 300px; }
+#staysTable td:nth-child(2) { min-width: 160px; }
+#staysTable td:nth-child(3) { min-width: 140px; }
+#staysTable td:nth-child(4) { min-width: 90px; }
+#staysTable td:nth-child(5) { min-width: 105px; }
+@media (max-width: 980px) {
+  .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+@media (max-width: 700px) {
+  .form-grid, .toolbar, .hero, .grid-6, .history-grid { grid-template-columns: 1fr !important; }
+  #staysTable td:nth-child(1) { min-width: 240px; }
+}
+
+    .swap-modal-grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    .swap-modal-box { border:1px solid var(--border); border-radius:14px; padding:12px; background:#fff; }
+    .swap-modal-box input { margin-bottom:8px; }
+    .swap-modal-box select { min-height:260px; }
+    @media (max-width: 800px) { .swap-modal-grid { grid-template-columns: 1fr; } }
+
+    .history-tools { display:flex; gap:8px; align-items:end; flex-wrap:wrap; margin:12px 0 14px; }
+    .history-tools .field { min-width: 160px; flex: 0 0 auto; }
+
+    .notice { margin-top: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); font-size: 13px; display:none; }
+    .notice.show { display:block; }
+    .notice.ok { background: var(--ok-bg); color: var(--ok); border-color: #86efac; }
+    .notice.warn { background: var(--warn-bg); color: var(--warn); border-color: #fcd34d; }
+    .notice.bad { background: var(--bad-bg); color: var(--bad); border-color: #fca5a5; }
+    .quick-filters { display:flex; gap:8px; flex-wrap:wrap; margin: 0 0 12px; }
+    .quick-filter-btn { border:1px solid var(--border); background:white; color:var(--text); padding:8px 12px; border-radius:999px; cursor:pointer; font-weight:700; font-size:12px; }
+    .quick-filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+    th.sortable { cursor:pointer; user-select:none; }
+    th.sortable .sort-ind { font-size: 10px; color: var(--muted); margin-left: 4px; }
+
+    .bulk-grid { display:grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap:10px; }
+    .bulk-table-wrap { overflow:auto; border:1px solid var(--border); border-radius:14px; background:white; margin-top:12px; }
+    .bulk-table { width:100%; border-collapse:collapse; min-width:1100px; }
+    .bulk-table th, .bulk-table td { padding:8px !important; border-bottom:1px solid #edf2f7; }
+    .bulk-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+    .bulk-row-error { background:#fff7f7; }
+    .bulk-summary { margin-top:10px; font-size:13px; color:var(--muted); }
+    @media (max-width: 980px) { .bulk-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 700px) { .bulk-grid { grid-template-columns: 1fr; } }
+
+.bulk-row-error { background:#fff1f1; }
+.bulk-cell-error { border:1px solid #ef4444 !important; background:#fff7f7 !important; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <h1>Hotel Fletcher gestione personale alloggiato</h1>
+      </div>
+      <div>
+        <label for="today">Data di riferimento</label>
+        <input id="today" type="date" />
+        <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap">
+          <button class="btn secondary" id="exportJsonBtn" type="button">Export JSON</button>
+          <button class="btn" id="exportExcelHotelBtn" type="button">Export Excel hotel</button>
+          <button class="btn secondary" id="importJsonBtn" type="button">Import JSON</button>
+          <button class="btn secondary" id="reloadCloudBtn" type="button">Reload cloud</button>
+          <button class="btn secondary" id="syncNowBtn" type="button">Sync now</button>
+          <input id="importJsonFile" type="file" accept=".json,application/json" style="display:none" />
+        </div>
+        <div id="syncStatus" class="small" style="margin-top:8px;color:#64748b">Cloud: not connected yet</div>
+        <div id="globalActionNotice" class="notice"></div>
+      </div>
+    </div>
+
+    <div class="grid-6">
+      <div class="card kpi"><div class="label">Totale stanze</div><div class="value" id="kpiRooms">0</div></div>
+      <div class="card kpi"><div class="label">Persone / righe</div><div class="value" id="kpiStays">0</div><div class="small">Storico importato</div></div>
+      <div class="card kpi"><div class="label">Capienza totale</div><div class="value" id="kpiCapacity">0</div></div>
+      <div class="card kpi"><div class="label">Posti occupati</div><div class="value" id="kpiOccupied">0</div></div>
+      <div class="card kpi"><div class="label">Posti disponibili</div><div class="value" id="kpiAvailable">0</div></div>
+      <div class="card kpi"><div class="label">Aziende presenti</div><div class="value" id="kpiCompanies">0</div><div class="small">Colonna Group</div></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="rooms">Stanze</button>
+      <button class="tab-btn" data-tab="stays">Presenze</button>
+      <button class="tab-btn" data-tab="history">Storico</button>
+      
+    </div>
+
+    <div id="rooms" class="tab-panel active">
+      <div class="grid-2">
+        <div class="card">
+          <h2>Aggiungi camera</h2>
+          <p class="head">Puoi aggiungere nuove camere con tipo libero e capienza numerica.</p>
+          <div class="form-grid">
+            <div><label for="roomCode">Numero stanza</label><input id="roomCode" placeholder="Es. A101" /></div>
+            <div><label for="roomType">Tipo camera</label><input id="roomType" placeholder="Es. Double room" value="Double room" /></div>
+            <div><label for="roomCapacity">Capienza</label><input id="roomCapacity" type="number" min="1" max="10" value="2" /></div>
+          </div>
+          <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:nowrap">
+            <button class="btn" id="addRoomBtn">Salva camera</button>
+            <div id="roomFormNotice" class="notice"></div>
+            
+          </div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+            <div>
+              <h2>Monitoraggio stato camere</h2>
+              <p class="head">Capienza, posti occupati e disponibilità. I cancellati non vengono conteggiati.</p>
+            </div>
+            <button class="btn" id="exportRoomsBtn">Export Excel stanze</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Stanza</th><th>Tipo</th><th>Capienza</th><th>Occupati</th><th>Disponibili</th><th>Status</th><th class="right">Azioni</th></tr></thead>
+              <tbody id="roomsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="stays" class="tab-panel">
+      <div class="card" style="margin-bottom:14px">
+        <h2>Registra soggiorno</h2>
+        <p class="head">Modalità unica per registrare uno o più soggiorni. Puoi usare una sola riga oppure generarne di più, assegnare automaticamente le camere libere e salvare tutto insieme.</p>
+        <div class="bulk-grid">
+          <div><label for="bulkCount">Numero righe</label><input id="bulkCount" type="number" min="1" max="30" value="1" /></div>
+          <div><label for="bulkCompany">Company</label><select id="bulkCompany"><option value="">Seleziona azienda</option><option value="EOS">EOS</option><option value="MS">MS</option><option value="RMLI">RMLI</option><option value="KOTLO">KOTLO</option></select></div>
+          <div><label for="bulkNationality">Nazionalità</label><select id="bulkNationality"><option value="">Seleziona nazionalità</option><option value="European">European</option><option value="Non-European">Non-European</option></select></div>
+          <div><label for="bulkRole">Role</label><input id="bulkRole" list="roleSuggestions" placeholder="Es. Helper" /></div>
+          <div><label for="bulkCheckIn">Check-in</label><input id="bulkCheckIn" type="date" /></div>
+          <div><label for="bulkCheckOut">Check-out</label><input id="bulkCheckOut" type="date" /></div>
+        </div>
+        <div class="bulk-actions">
+          <button class="btn secondary" id="bulkGenerateBtn" type="button">Genera righe</button>
+          <button class="btn secondary" id="bulkAssignRoomsBtn" type="button">Assegna camere automatico</button>
+          <button class="btn" id="bulkSaveBtn" type="button">Salva tutto</button>
+          <button class="btn secondary" id="bulkResetBtn" type="button">Reset</button>
+        </div>
+        <div id="bulkFormNotice" class="notice"></div>
+        <div id="bulkAvailabilityBox" class="help" style="margin-top:12px">Seleziona una riga e una stanza per vedere disponibilità e occupanti nel periodo.</div>
+        <div class="bulk-table-wrap">
+          <table class="bulk-table">
+            <thead>
+              <tr>
+                <th>#</th><th>Stanza</th><th>Worker ID</th><th>Cognome</th><th>Nome</th><th>Company</th><th>Nazionalità</th><th>Role</th><th>Check-in</th><th>Check-out</th>
+              </tr>
+            </thead>
+            <tbody id="bulkTableBody"></tbody>
+          </table>
+        </div>
+        <div id="bulkSummary" class="bulk-summary">Genera le righe per iniziare.</div>
+        <div id="bulkDraftStatus" class="small" style="margin-top:6px;color:#64748b">Bozza locale: non salvata</div>
+      </div>
+      <div class="grid-2">
+        <div class="card" style="display:none">
+          <h2>Inserimento singolo rapido</h2>
+          <p class="head">Versione compatta per registrare rapidamente un solo soggiorno.</p>
+          <div class="form-grid">
+            <div><label for="stayRoom">Numero stanza</label><select id="stayRoom"></select></div>
+            <div><label for="workerId">ID lavoratore</label><input id="workerId" placeholder="Es. 1-3-74D-12A" /></div>
+            <div><label for="surname">Cognome</label><input id="surname" /></div>
+            <div><label for="name">Nome</label><input id="name" /></div>
+            <div><label for="role">Ruolo in azienda</label><input id="role" list="roleSuggestions" placeholder="Es. Helper, Pipefitter, Consultant" /></div>
+            <div><label for="company">Azienda di appartenenza</label><select id="company"><option value="">Seleziona azienda</option><option value="EOS">EOS</option><option value="MS">MS</option><option value="RMLI">RMLI</option><option value="KOTLO">KOTLO</option></select></div>
+            <div><label for="nationality">Nazionalità</label><select id="nationality"><option value="">Seleziona nazionalità</option><option value="European">European</option><option value="Non-European">Non-European</option></select></div>
+            <div><label for="status">Stato booking</label><select id="status"><option value="confirmed">confirmed</option><option value="unknown">unknown</option><option value="cancelled">cancelled</option></select></div>
+            <div><label for="checkIn">Check-in</label><input id="checkIn" type="date" /></div>
+            <div><label for="checkOut">Check-out</label><input id="checkOut" type="date" /></div>
+          </div>
+          <div style="margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap"><button class="btn" id="addStayBtn">Registra soggiorno</button><span class="small">Invio rapido: compila i campi principali e salva.</span></div>
+          <div id="stayAvailabilityBox" class="help" style="margin-top:12px">Seleziona stanza e periodo per vedere disponibilità e conflitti.</div>
+          <div id="stayFormNotice" class="notice"></div>
+          <datalist id="roleSuggestions"><option value="Helper"><option value="Laborer"><option value="Pipefitter"><option value="Rigger"><option value="Consultant"><option value="Manager"><option value="Technical Systems Officer"><option value="IT Officer"><option value="HSE Officer"></datalist>
+        </div>
+        <div class="card">
+          <h2>Presenze registrate</h2>
+          <p class="head">Ricerca e filtro sui dati importati dall’Excel.</p>
+          <div class="quick-filters" id="stayQuickFilters">
+            <button class="quick-filter-btn active" data-filter="all">Tutte</button>
+            <button class="quick-filter-btn" data-filter="today">Presenti oggi</button>
+            <button class="quick-filter-btn" data-filter="arrivals">Arrivi oggi</button>
+            <button class="quick-filter-btn" data-filter="departures">Partenze oggi</button>
+            <button class="quick-filter-btn" data-filter="future">Future</button>
+          </div>
+          <div class="toolbar">
+            <input id="searchStay" placeholder="Cerca per nome, ID, azienda, stanza..." />
+            <select id="filterRoom"></select>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th class="sortable" data-sort="worker">Lavoratore<span class="sort-ind"></span></th><th class="sortable" data-sort="room">Alloggio<span class="sort-ind"></span></th><th class="sortable" data-sort="period">Periodo<span class="sort-ind"></span></th><th class="sortable" data-sort="status">Status<span class="sort-ind"></span></th><th class="right">Azioni</th></tr></thead>
+              <tbody id="staysTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="history" class="tab-panel">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div>
+            <h2>Storico soggiorni per stanza</h2>
+            <p class="head">Consultazione completa dei soggiorni per ogni camera.</p>
+          </div>
+          <button class="btn" id="exportHistoryBtn">Export Excel storico</button>
+        </div>
+
+        <div class="history-tools">
+          <div class="field">
+            <label for="historyFrom">Dal</label>
+            <input id="historyFrom" type="date" />
+          </div>
+          <div class="field">
+            <label for="historyTo">Al</label>
+            <input id="historyTo" type="date" />
+          </div>
+          <button class="btn secondary" id="applyHistoryFilterBtn">Applica filtro</button>
+          <button class="btn secondary" id="resetHistoryFilterBtn">Reset periodo</button>
+        </div>
+
+        <div class="history-grid" id="historyGrid"></div>
+      </div>
+    </div>
+
+    <div id="roomOccupantsModal" class="modal-backdrop">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div>
+            <h2 id="roomOccupantsTitle" style="margin:0">Occupanti stanza</h2>
+            <div id="roomOccupantsSubtitle" class="small"></div>
+          </div>
+          <button class="btn secondary" style="padding:6px 10px;font-size:12px" onclick="closeRoomOccupants()">Chiudi</button>
+        </div>
+        <div id="roomOccupantsList"></div>
+      </div>
+    </div>
+
+    <div id="swapRoomModal" class="modal-backdrop">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div>
+            <h2 style="margin:0">Scambio camere</h2>
+            <div class="small">Seleziona due persone attive e conferma lo scambio della camera.</div>
+          </div>
+          <button class="btn secondary" style="padding:6px 10px;font-size:12px" onclick="closeSwapRoomModal()">Chiudi</button>
+        </div>
+        <div class="swap-modal-grid">
+          <div class="swap-modal-box">
+            <label for="swapSearchA">Persona 1</label>
+            <input id="swapSearchA" placeholder="Cerca per stanza, cognome, nome, azienda..." />
+            <select id="swapStayA" size="12"></select>
+          </div>
+          <div class="swap-modal-box">
+            <label for="swapSearchB">Persona 2</label>
+            <input id="swapSearchB" placeholder="Cerca per stanza, cognome, nome, azienda..." />
+            <select id="swapStayB" size="12"></select>
+          </div>
+        </div>
+        <div id="swapRoomPreview" class="help" style="margin-top:12px">Seleziona due persone per vedere l’anteprima dello scambio.</div>
+        <div style="margin-top:12px; display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap">
+          <button class="btn secondary" onclick="closeSwapRoomModal()">Annulla</button>
+          <button class="btn" id="confirmSwapRoomBtn">Conferma scambio</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const IMPORTED_ROOMS = [{"code": "A101", "typeLabel": "Double room", "capacity": 2}, {"code": "A102", "typeLabel": "Studio", "capacity": 2}, {"code": "A103", "typeLabel": "Double room", "capacity": 2}, {"code": "A104", "typeLabel": "Double room", "capacity": 2}, {"code": "A105", "typeLabel": "Double room", "capacity": 2}, {"code": "A106", "typeLabel": "Double room", "capacity": 2}, {"code": "A107", "typeLabel": "Double room", "capacity": 2}, {"code": "A108", "typeLabel": "Double room", "capacity": 2}, {"code": "A109", "typeLabel": "Double room", "capacity": 2}, {"code": "A110", "typeLabel": "Double room", "capacity": 2}, {"code": "A112", "typeLabel": "Double room", "capacity": 2}, {"code": "A114", "typeLabel": "Double room", "capacity": 2}, {"code": "A116", "typeLabel": "Double room", "capacity": 2}, {"code": "A118", "typeLabel": "Double room", "capacity": 2}, {"code": "A120", "typeLabel": "Double room", "capacity": 2}, {"code": "A122", "typeLabel": "Double room", "capacity": 2}, {"code": "A123", "typeLabel": "Double room", "capacity": 2}, {"code": "A124", "typeLabel": "Double room", "capacity": 2}, {"code": "A125", "typeLabel": "Double room", "capacity": 2}, {"code": "A126", "typeLabel": "Double room", "capacity": 2}, {"code": "A127", "typeLabel": "Double room", "capacity": 2}, {"code": "A129", "typeLabel": "Double room", "capacity": 2}, {"code": "A131", "typeLabel": "Double room", "capacity": 2}, {"code": "A132", "typeLabel": "Double room", "capacity": 2}, {"code": "A133", "typeLabel": "Double room", "capacity": 2}, {"code": "A136", "typeLabel": "Double room", "capacity": 2}, {"code": "A201", "typeLabel": "Apartment", "capacity": 2}, {"code": "A204", "typeLabel": "Double room", "capacity": 2}, {"code": "A205", "typeLabel": "Double room", "capacity": 2}, {"code": "A206", "typeLabel": "Double room", "capacity": 2}, {"code": "A207", "typeLabel": "Double room", "capacity": 2}, {"code": "A208", "typeLabel": "Double room", "capacity": 2}, {"code": "A209", "typeLabel": "Family - x4", "capacity": 4}, {"code": "A210", "typeLabel": "Double room", "capacity": 2}, {"code": "A214", "typeLabel": "Double room", "capacity": 2}, {"code": "A216", "typeLabel": "Double room", "capacity": 2}, {"code": "A218", "typeLabel": "Double room", "capacity": 2}, {"code": "A220", "typeLabel": "Double room", "capacity": 2}, {"code": "A222", "typeLabel": "Double room", "capacity": 2}, {"code": "A224", "typeLabel": "Double room", "capacity": 2}, {"code": "A225", "typeLabel": "Apartment", "capacity": 2}, {"code": "A226", "typeLabel": "Double room", "capacity": 2}, {"code": "A227", "typeLabel": "Double room", "capacity": 2}, {"code": "A228", "typeLabel": "Double room", "capacity": 2}, {"code": "A229", "typeLabel": "Double room", "capacity": 2}, {"code": "A230", "typeLabel": "Double room", "capacity": 2}, {"code": "A231", "typeLabel": "Double room", "capacity": 2}, {"code": "A232", "typeLabel": "Double room", "capacity": 2}, {"code": "A233", "typeLabel": "Double room", "capacity": 2}, {"code": "A234", "typeLabel": "Double room", "capacity": 2}, {"code": "A235", "typeLabel": "Double room", "capacity": 2}, {"code": "A236", "typeLabel": "Double room", "capacity": 2}, {"code": "A301", "typeLabel": "Apartment", "capacity": 2}, {"code": "A302", "typeLabel": "Studio", "capacity": 2}, {"code": "A304", "typeLabel": "Double room", "capacity": 2}, {"code": "A305", "typeLabel": "Double room", "capacity": 2}, {"code": "A306", "typeLabel": "Double room", "capacity": 2}, {"code": "A307", "typeLabel": "Double room", "capacity": 2}, {"code": "A308", "typeLabel": "Double room", "capacity": 2}, {"code": "A309", "typeLabel": "Family - x4", "capacity": 4}, {"code": "A310", "typeLabel": "Double room", "capacity": 2}, {"code": "A312", "typeLabel": "Double room", "capacity": 2}, {"code": "A324", "typeLabel": "Double room", "capacity": 2}, {"code": "A326", "typeLabel": "Double room", "capacity": 2}, {"code": "A327", "typeLabel": "Double room", "capacity": 2}, {"code": "A328", "typeLabel": "Double room", "capacity": 2}, {"code": "A329", "typeLabel": "Double room", "capacity": 2}, {"code": "A330", "typeLabel": "Double room", "capacity": 2}, {"code": "A331", "typeLabel": "Double room", "capacity": 2}, {"code": "A332", "typeLabel": "Double room", "capacity": 2}, {"code": "A333", "typeLabel": "Double room", "capacity": 2}, {"code": "A334", "typeLabel": "Double room", "capacity": 2}, {"code": "A335", "typeLabel": "Double room", "capacity": 2}, {"code": "A336", "typeLabel": "Double room", "capacity": 2}, {"code": "A401", "typeLabel": "Apartment", "capacity": 2}, {"code": "A404", "typeLabel": "Double room", "capacity": 2}, {"code": "A405", "typeLabel": "Double room", "capacity": 2}, {"code": "A406", "typeLabel": "Double room", "capacity": 2}, {"code": "A407", "typeLabel": "Double room", "capacity": 2}, {"code": "A408", "typeLabel": "Double room", "capacity": 2}, {"code": "A409", "typeLabel": "Double room", "capacity": 2}, {"code": "A410", "typeLabel": "Double room", "capacity": 2}, {"code": "A411", "typeLabel": "Double room", "capacity": 2}, {"code": "A412", "typeLabel": "Double room", "capacity": 2}, {"code": "A414", "typeLabel": "Double room", "capacity": 2}, {"code": "A416", "typeLabel": "Double room", "capacity": 2}, {"code": "A418", "typeLabel": "Double room", "capacity": 2}, {"code": "A420", "typeLabel": "Double room", "capacity": 2}, {"code": "A422", "typeLabel": "Double room", "capacity": 2}, {"code": "A424", "typeLabel": "Double room", "capacity": 2}, {"code": "A425", "typeLabel": "Apartment", "capacity": 2}, {"code": "A426", "typeLabel": "Double room", "capacity": 2}, {"code": "A427", "typeLabel": "Double room", "capacity": 2}, {"code": "A428", "typeLabel": "Double room", "capacity": 2}, {"code": "A429", "typeLabel": "Double room", "capacity": 2}, {"code": "A430", "typeLabel": "Double room", "capacity": 2}, {"code": "A431", "typeLabel": "Double room", "capacity": 2}, {"code": "A432", "typeLabel": "Double room", "capacity": 2}, {"code": "A433", "typeLabel": "Double room", "capacity": 2}, {"code": "A434", "typeLabel": "Double room", "capacity": 2}, {"code": "A435", "typeLabel": "Double room", "capacity": 2}, {"code": "A436", "typeLabel": "Double room", "capacity": 2}, {"code": "A503", "typeLabel": "Double room", "capacity": 2}, {"code": "A504", "typeLabel": "Double room", "capacity": 2}, {"code": "A505", "typeLabel": "Double room", "capacity": 2}, {"code": "A506", "typeLabel": "Double room", "capacity": 2}, {"code": "A507", "typeLabel": "Double room", "capacity": 2}, {"code": "A508", "typeLabel": "Double room", "capacity": 2}, {"code": "A509", "typeLabel": "Double room", "capacity": 2}, {"code": "A510", "typeLabel": "Double room", "capacity": 2}, {"code": "A511", "typeLabel": "Double room", "capacity": 2}, {"code": "A512", "typeLabel": "Double room", "capacity": 2}, {"code": "A514", "typeLabel": "Double room", "capacity": 2}, {"code": "A516", "typeLabel": "Double room", "capacity": 2}, {"code": "A518", "typeLabel": "Double room", "capacity": 2}, {"code": "A522", "typeLabel": "Double room", "capacity": 2}];
+    const IMPORTED_STAYS = [{"id": "stay-1", "roomCode": "A101", "workerId": "257d", "surname": "Schiopu", "name": "Ionel Catalin", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-02-15", "checkOut": "2026-04-05"}, {"id": "stay-2", "roomCode": "A101", "workerId": "247", "surname": "Sticlaru", "name": "Gheorghe", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-02-15", "checkOut": "2026-05-15"}, {"id": "stay-3", "roomCode": "A102", "workerId": "visitor", "surname": "Del Sante", "name": "Andrea", "role": "IT Officer", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2026-04-07", "checkOut": "2026-04-10"}, {"id": "stay-4", "roomCode": "A102", "workerId": "visitor", "surname": "Dordoni", "name": "Mattia", "role": "Consultant", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-30", "checkOut": "2026-03-31"}, {"id": "stay-5", "roomCode": "A103", "workerId": "472a", "surname": "PILICA", "name": "VASILE", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-14", "checkOut": "2026-03-21"}, {"id": "stay-6", "roomCode": "A103", "workerId": "1005", "surname": "Ciobotea", "name": "Iulian Bogdan", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-15", "checkOut": "2026-03-25"}, {"id": "stay-7", "roomCode": "A103", "workerId": "471", "surname": "Toma", "name": "Adrian Iulian", "role": "Rigger", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-11", "checkOut": "2026-04-10"}, {"id": "stay-8", "roomCode": "A104", "workerId": "979", "surname": "Pio", "name": "Federico", "role": "Technical Systems Officer", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-17", "checkOut": "2026-04-07"}, {"id": "stay-9", "roomCode": "A105", "workerId": "247", "surname": "Sticlaru", "name": "Gheorghe", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-02-15", "checkOut": "2026-03-31"}, {"id": "stay-10", "roomCode": "A105", "workerId": "visitor", "surname": "Marchio", "name": "Nicola", "role": "Manager", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2026-04-08", "checkOut": "2026-04-15"}, {"id": "stay-11", "roomCode": "A105", "workerId": "visitor", "surname": "Giovanetti", "name": "Giacomo", "role": "Consultant", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-30", "checkOut": "2026-03-31"}, {"id": "stay-13", "roomCode": "A107", "workerId": "visitor", "surname": "Manfredi", "name": "Denise", "role": "HSE Officer", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-23", "checkOut": "2026-03-27"}, {"id": "stay-14", "roomCode": "A107", "workerId": "1016", "surname": "Lenati", "name": "Riccardo", "role": "Test Pack Data Support", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2026-04-08", "checkOut": "2026-04-22"}, {"id": "stay-15", "roomCode": "A108", "workerId": "124", "surname": "KIZHAKEDATH KUTTAPPAN", "name": "SATHEESAN", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-10", "checkOut": "2026-07-01"}, {"id": "stay-16", "roomCode": "A108", "workerId": "128", "surname": "ARJUNAN PILLAI", "name": "SHYJU", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-12", "checkOut": "2026-07-01"}, {"id": "stay-17", "roomCode": "A109", "workerId": "visitor", "surname": "De Marco", "name": "Danilo", "role": "Consultant", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-30", "checkOut": "2026-03-31"}, {"id": "stay-18", "roomCode": "A110", "workerId": "297a", "surname": "Botea", "name": "Constantin Gabriel", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2025-01-11", "checkOut": "2026-04-10"}, {"id": "stay-19", "roomCode": "A110", "workerId": "330b", "surname": "Corcodel", "name": "Alexandru Alin", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2025-01-11", "checkOut": "2026-04-10"}, {"id": "stay-20", "roomCode": "A112", "workerId": "754", "surname": "Qayum", "name": "Abdul", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2025-12-31", "checkOut": "2026-04-30"}, {"id": "stay-21", "roomCode": "A112", "workerId": "756", "surname": "Tarakai", "name": "Khalid", "role": "Helper", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2025-12-31", "checkOut": "2026-04-30"}, {"id": "stay-22", "roomCode": "A114", "workerId": "757", "surname": "Muhammad", "name": "Zada", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2025-12-31", "checkOut": "2026-04-30"}, {"id": "stay-23", "roomCode": "A114", "workerId": "758", "surname": "Shah", "name": "Ikram", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2025-12-31", "checkOut": "2026-04-30"}, {"id": "stay-24", "roomCode": "A116", "workerId": "956", "surname": "Nica", "name": "Gabriel", "role": "Helper", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-09", "checkOut": "2026-04-02"}, {"id": "stay-25", "roomCode": "A116", "workerId": "962", "surname": "Robea", "name": "Gabriel Marian", "role": "Helper", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-14", "checkOut": "2026-04-02"}, {"id": "stay-26", "roomCode": "A118", "workerId": "298c", "surname": "Riclea", "name": "George", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-06"}, {"id": "stay-27", "roomCode": "A118", "workerId": "416a", "surname": "Gheba", "name": "Adrian Ionut", "role": "Rigger", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-03-20"}, {"id": "stay-28", "roomCode": "A120", "workerId": "visitor", "surname": "Schianchi", "name": "Francesca", "role": "HR Officer", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2026-04-07", "checkOut": "2026-04-30"}, {"id": "stay-29", "roomCode": "A122", "workerId": "196", "surname": "Manaila", "name": "Nelu", "role": "Welder", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2025-12-28", "checkOut": "2026-04-09"}, {"id": "stay-30", "roomCode": "A122", "workerId": "196", "surname": "Manaila", "name": "Nelu", "role": "Welder", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2026-04-23", "checkOut": "2026-05-31"}, {"id": "stay-31", "roomCode": "A123", "workerId": "157a", "surname": "LUKICOVS", "name": "JEVGENIJS", "role": "Rigger", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-11", "checkOut": "2026-04-02"}, {"id": "stay-32", "roomCode": "A123", "workerId": "1004", "surname": "Athanasopoulos", "name": "Andreas", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-25", "checkOut": "2026-06-15"}, {"id": "stay-33", "roomCode": "A123", "workerId": "150", "surname": "BINAZS", "name": "DMITRIJS", "role": "Rigger", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-11", "checkOut": "2026-03-15"}, {"id": "stay-34", "roomCode": "A124", "workerId": "277", "surname": "CORNEA", "name": "GEORGE VIRGIL", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-02-15", "checkOut": "2026-05-14"}, {"id": "stay-35", "roomCode": "A124", "workerId": "93b", "surname": "Andreescu", "name": "Paul", "role": "Truck driver", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-02-15", "checkOut": "2026-05-15"}, {"id": "stay-36", "roomCode": "A125", "workerId": "269a", "surname": "PUIA", "name": "LAURENTIU", "role": "Laydown foreman", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-05", "checkOut": "2026-04-04"}, {"id": "stay-37", "roomCode": "A125", "workerId": "299a", "surname": "Puia", "name": "Radu-Mihnea", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-05", "checkOut": "2026-04-04"}, {"id": "stay-38", "roomCode": "A126", "workerId": "198", "surname": "GOGA", "name": "MIROSLAV", "role": "Welder", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-03", "checkOut": "2026-04-04"}, {"id": "stay-39", "roomCode": "A126", "workerId": "198", "surname": "GOGA", "name": "MIROSLAV", "role": "Welder", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2026-04-13", "checkOut": "2026-05-31"}, {"id": "stay-40", "roomCode": "A127", "workerId": "252d", "surname": "Mitis", "name": "Iulian", "role": "Pipefitter", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-11", "checkOut": "2026-04-11"}, {"id": "stay-41", "roomCode": "A127", "workerId": "252d", "surname": "Mitis", "name": "Iulian", "role": "Pipefitter", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-04-26", "checkOut": "2026-07-26"}, {"id": "stay-42", "roomCode": "A129", "workerId": "248d", "surname": "Neagu", "name": "Andrei", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2025-01-11", "checkOut": "2026-04-10"}, {"id": "stay-43", "roomCode": "A129", "workerId": "278", "surname": "NEAGU", "name": "ADRIAN IONUT", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2025-01-11", "checkOut": "2026-04-10"}, {"id": "stay-44", "roomCode": "A131", "workerId": "847", "surname": "Ferrigno", "name": "Gianluca", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-29", "checkOut": "2026-03-22"}, {"id": "stay-45", "roomCode": "A132", "workerId": "196", "surname": "Valenti", "name": "Orazio", "role": "Welder", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2025-01-04", "checkOut": "2026-04-05"}, {"id": "stay-46", "roomCode": "A132", "workerId": "196", "surname": "Valenti", "name": "Orazio", "role": "Welder", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2026-04-12", "checkOut": "2026-05-31"}, {"id": "stay-47", "roomCode": "A133", "workerId": "332b", "surname": "Bratescu", "name": "Dan Andrei", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-10"}, {"id": "stay-48", "roomCode": "A133", "workerId": "266", "surname": "Cheptanus", "name": "Stefanel", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-05", "checkOut": "2026-02-28"}, {"id": "stay-49", "roomCode": "A136", "workerId": "755", "surname": "Ullah", "name": "Shafi", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2025-12-31", "checkOut": "2026-04-30"}, {"id": "stay-50", "roomCode": "A136", "workerId": "753", "surname": "Hussain", "name": "Massod", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2025-12-31", "checkOut": "2026-04-30"}, {"id": "stay-52", "roomCode": "A204", "workerId": "307", "surname": "Hatos", "name": "Robert-Mihnea", "role": "Rigger", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-04-14", "checkOut": "2026-08-14"}, {"id": "stay-53", "roomCode": "A204", "workerId": "157a", "surname": "LUKICOVS", "name": "JEVGENIJS", "role": "Rigger", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-04-02", "checkOut": "2026-04-25"}, {"id": "stay-54", "roomCode": "A204", "workerId": "473", "surname": "Iomer", "name": "Givan Iullian", "role": "Rigger", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-11", "checkOut": "2026-04-01"}, {"id": "stay-55", "roomCode": "A205", "workerId": "734", "surname": "Nunes", "name": "Andres", "role": "QC Traceability Assistant", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2026-02-21", "checkOut": "2026-03-19"}, {"id": "stay-56", "roomCode": "A206", "workerId": "472a", "surname": "PILICA", "name": "VASILE", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-03-14"}, {"id": "stay-57", "roomCode": "A206", "workerId": "370a", "surname": "Dragu", "name": "Andrei", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-21", "checkOut": "2026-01-31"}, {"id": "stay-58", "roomCode": "A207", "workerId": "visitor", "surname": "Barbarese", "name": "Marcello", "role": "Logistic Coordinator", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2026-02-23", "checkOut": "2026-04-03"}, {"id": "stay-59", "roomCode": "A208", "workerId": "875", "surname": "Casciana", "name": "Davide Giuseppe", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-25", "checkOut": "2026-03-26"}, {"id": "stay-60", "roomCode": "A209", "workerId": "966", "surname": "Constantin", "name": "Florin", "role": "Ironworker", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-14", "checkOut": "2026-04-02"}, {"id": "stay-61", "roomCode": "A209", "workerId": "971", "surname": "Gurau", "name": "Traian", "role": "Ironworker", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-09", "checkOut": "2026-03-28"}, {"id": "stay-62", "roomCode": "A209", "workerId": "968", "surname": "Balacenau", "name": "Teodor", "role": "Ironworker", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-09", "checkOut": "2026-04-02"}, {"id": "stay-63", "roomCode": "A209", "workerId": "1029", "surname": "Zghrea", "name": "Gheorghe", "role": "", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-31", "checkOut": "2026-04-02"}, {"id": "stay-64", "roomCode": "A210", "workerId": "334", "surname": "Mistodie", "name": "Constantin", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-04"}, {"id": "stay-65", "roomCode": "A210", "workerId": "94a", "surname": "Voica", "name": "Constantin", "role": "Truck driver", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-25", "checkOut": "2026-04-25"}, {"id": "stay-66", "roomCode": "A214", "workerId": "141b", "surname": "Nechita", "name": "Sorin Adrian", "role": "Rigger", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-03-28"}, {"id": "stay-67", "roomCode": "A214", "workerId": "274a", "surname": "Nechita", "name": "Cristi-Elvis", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-02-06", "checkOut": "2026-05-06"}, {"id": "stay-68", "roomCode": "A216", "workerId": "1004", "surname": "Athanasopoulos", "name": "Andreas", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-15", "checkOut": "2026-03-25"}, {"id": "stay-69", "roomCode": "A216", "workerId": "1005", "surname": "Ciobotea", "name": "Iulian Bogdan", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-15", "checkOut": "2026-03-25"}, {"id": "stay-70", "roomCode": "A218", "workerId": "244a", "surname": "Dragomir", "name": "Valentin", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-11", "checkOut": "2026-04-10"}, {"id": "stay-71", "roomCode": "A218", "workerId": "349c", "surname": "Lupascu", "name": "Nicolae Mihaita", "role": "Rigger", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-09"}, {"id": "stay-72", "roomCode": "A220", "workerId": "93b", "surname": "Andreescu", "name": "Paul", "role": "Truck driver", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-02-15", "checkOut": "2026-05-15"}, {"id": "stay-73", "roomCode": "A220", "workerId": "105", "surname": "MARIN", "name": "ION", "role": "Ironworker", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-03-28"}, {"id": "stay-74", "roomCode": "A222", "workerId": "348a", "surname": "Di Maggio", "name": "Mattia", "role": "Helper", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2025-12-27", "checkOut": "2026-05-10"}, {"id": "stay-75", "roomCode": "A222", "workerId": "444", "surname": "Di Maggio", "name": "Andrea", "role": "Helper", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-07", "checkOut": "2026-05-10"}, {"id": "stay-76", "roomCode": "A224", "workerId": "894A", "surname": "Bostanel", "name": "Alexandro", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-31", "checkOut": "2026-04-02"}, {"id": "stay-77", "roomCode": "A224", "workerId": "895A", "surname": "Bucur", "name": "Efim", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-31", "checkOut": "2026-04-02"}, {"id": "stay-78", "roomCode": "A225", "workerId": "794A", "surname": "Simion", "name": "Victor", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-14", "checkOut": "2026-03-31"}, {"id": "stay-79", "roomCode": "A225", "workerId": "891", "surname": "Corallo", "name": "Alejandro Rosario", "role": "Helper", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-24", "checkOut": "2026-03-22"}, {"id": "stay-80", "roomCode": "A226", "workerId": "903A", "surname": "Ristache", "name": "Florin", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-31", "checkOut": "2026-04-02"}, {"id": "stay-81", "roomCode": "A226", "workerId": "897A", "surname": "Damoc", "name": "Stefanel", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-31", "checkOut": "2026-04-02"}, {"id": "stay-82", "roomCode": "A227", "workerId": "1020", "surname": "Jardi", "name": "Jaouad", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-31", "checkOut": "2026-04-30"}, {"id": "stay-83", "roomCode": "A227", "workerId": "810", "surname": "Ahmadzai", "name": "Mola Jan", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-05", "checkOut": "2026-04-30"}, {"id": "stay-85", "roomCode": "A228", "workerId": "809", "surname": "Afghani", "name": "Habibuliah", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-04-01", "checkOut": "2026-04-30"}, {"id": "stay-86", "roomCode": "A228", "workerId": "812", "surname": "Azeem", "name": "Israr", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-05", "checkOut": "2026-04-30"}, {"id": "stay-87", "roomCode": "A229", "workerId": "813", "surname": "Baloch", "name": "Gualagha", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-05", "checkOut": "2026-04-30"}, {"id": "stay-88", "roomCode": "A229", "workerId": "814", "surname": "Dawi", "name": "Abdul Wali", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-05", "checkOut": "2026-04-30"}, {"id": "stay-89", "roomCode": "A230", "workerId": "1028", "surname": "Terzo", "name": "Ivano", "role": "Helper", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-31", "checkOut": "2026-04-08"}, {"id": "stay-90", "roomCode": "A230", "workerId": "1024", "surname": "Cinardi", "name": "Arturo", "role": "Helper", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-31", "checkOut": "2026-04-08"}, {"id": "stay-91", "roomCode": "A231", "workerId": "815", "surname": "Dawlatzai", "name": "Rahmat", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-05", "checkOut": "2026-04-30"}, {"id": "stay-92", "roomCode": "A231", "workerId": "821", "surname": "Ayazi Shah", "name": "Lala", "role": "Helper", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-24", "checkOut": "2026-04-30"}, {"id": "stay-93", "roomCode": "A232", "workerId": "838", "surname": "Mokhtar", "name": "Waseem", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-24", "checkOut": "2026-04-30"}, {"id": "stay-94", "roomCode": "A232", "workerId": "1022", "surname": "Azizah Elsayed Walid", "name": "Abdelkarim", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-31", "checkOut": "2026-04-30"}, {"id": "stay-97", "roomCode": "A234", "workerId": "820", "surname": "Saqazai", "name": "Faiz Ullah", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-05", "checkOut": "2026-04-30"}, {"id": "stay-98", "roomCode": "A234", "workerId": "822", "surname": "Shah", "name": "Wilayat", "role": "Helper", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-05", "checkOut": "2026-04-30"}, {"id": "stay-99", "roomCode": "A235", "workerId": "823", "surname": "Jabarkhill", "name": "Shawkat", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-05", "checkOut": "2026-04-30"}, {"id": "stay-100", "roomCode": "A235", "workerId": "818", "surname": "Maroofkhel", "name": "Nastratullah", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-24", "checkOut": "2026-04-30"}, {"id": "stay-101", "roomCode": "A236", "workerId": "825", "surname": "Taraki", "name": "Enayatullah", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-05", "checkOut": "2026-04-30"}, {"id": "stay-102", "roomCode": "A236", "workerId": "826", "surname": "Tarakhail", "name": "Khaistarahman", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-05", "checkOut": "2026-04-30"}, {"id": "stay-104", "roomCode": "A302", "workerId": "560", "surname": "Mocanasu", "name": "Andra", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-02-01", "checkOut": "2026-05-01"}, {"id": "stay-105", "roomCode": "A302", "workerId": "275B", "surname": "Mocanasu", "name": "Mihai", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-02-01", "checkOut": "2026-05-01"}, {"id": "stay-106", "roomCode": "A304", "workerId": "304", "surname": "PATIL", "name": "ROHIT MOHAN", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-02-15"}, {"id": "stay-107", "roomCode": "A304", "workerId": "488", "surname": "AJINKYA VILAS", "name": "BANDAL", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-05"}, {"id": "stay-108", "roomCode": "A305", "workerId": "193", "surname": "REDDIPALLI", "name": "SURESH", "role": "Welder", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-12", "checkOut": "2026-07-01"}, {"id": "stay-109", "roomCode": "A305", "workerId": "476", "surname": "KASINATHAN", "name": "ELUMALAI", "role": "Welder", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-14", "checkOut": "2026-07-14"}, {"id": "stay-110", "roomCode": "A306", "workerId": "479", "surname": "RAJEEV THAZHAYIL", "name": "RAJAN", "role": "Welder", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-12"}, {"id": "stay-111", "roomCode": "A306", "workerId": "486", "surname": "SONU", "name": "SINGH", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-12"}, {"id": "stay-112", "roomCode": "A307", "workerId": "124", "surname": "KIZHAKEDATH KUTTAPPAN", "name": "SATHEESAN", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-02-15"}, {"id": "stay-113", "roomCode": "A307", "workerId": "128", "surname": "ARJUNAN PILLAI", "name": "SHYJU", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-02-15"}, {"id": "stay-114", "roomCode": "A307", "workerId": "Visitor", "surname": "Kota Govinda", "name": "Yatheesh", "role": "HR Officer", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-27", "checkOut": "2026-09-25"}, {"id": "stay-115", "roomCode": "A308", "workerId": "292", "surname": "MD SHABBIR", "name": "MD SHABBIR", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-07-10"}, {"id": "stay-116", "roomCode": "A308", "workerId": "319", "surname": "SHAIKH", "name": "NIJAMUDDIN", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-10"}, {"id": "stay-117", "roomCode": "A309", "workerId": "889", "surname": "Cavaleri", "name": "Loris Calogero", "role": "Helper", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-24", "checkOut": "2026-04-15"}, {"id": "stay-118", "roomCode": "A309", "workerId": "781A", "surname": "Comandatore", "name": "Fabio", "role": "Helper", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-31", "checkOut": "2026-04-08"}, {"id": "stay-119", "roomCode": "A309", "workerId": "867", "surname": "Apostol", "name": "Vladut Petru", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-24", "checkOut": "2026-04-15"}, {"id": "stay-120", "roomCode": "A310", "workerId": "202b", "surname": "Chalumuri", "name": "Nageswara Rao", "role": "Welder", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-02-01", "checkOut": "2026-06-25"}, {"id": "stay-121", "roomCode": "A310", "workerId": "212", "surname": "Kamesu", "name": "Panduru", "role": "Welder", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-25", "checkOut": "2026-06-25"}, {"id": "stay-122", "roomCode": "A312", "workerId": "243a", "surname": "Kontala", "name": "Bairagireddy", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-02-16", "checkOut": "2026-08-16"}, {"id": "stay-123", "roomCode": "A312", "workerId": "294a", "surname": "SUMALA", "name": "GIRIBABU", "role": "Helper", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-05", "checkOut": "2026-07-05"}, {"id": "stay-124", "roomCode": "A324", "workerId": "751", "surname": "Jawadi", "name": "Emran", "role": "Helper", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-30"}, {"id": "stay-125", "roomCode": "A324", "workerId": "752", "surname": "Khan", "name": "Ningyal", "role": "Helper", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-30"}, {"id": "stay-126", "roomCode": "A326", "workerId": "302", "surname": "PAYYAPPALLIL MOHANDAS", "name": "MONISH", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-12"}, {"id": "stay-127", "roomCode": "A326", "workerId": "309", "surname": "MUHAMMADKUNJU", "name": "MUHAMMAD RASHID", "role": "Helper", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-12"}, {"id": "stay-128", "roomCode": "A327", "workerId": "490", "surname": "SHELAR", "name": "CHETAN NARAYAN", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-05-12"}, {"id": "stay-129", "roomCode": "A327", "workerId": "308", "surname": "TAMBE", "name": "AKSHAY MAHADEV", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-02-18", "checkOut": "2026-08-18"}, {"id": "stay-130", "roomCode": "A328", "workerId": "478", "surname": "MUDUNURI", "name": "SANTOSH KUMAR", "role": "Welder", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-02"}, {"id": "stay-131", "roomCode": "A328", "workerId": "482", "surname": "SETHI", "name": "NIRANJAN", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-02"}, {"id": "stay-132", "roomCode": "A328", "workerId": "478", "surname": "MUDUNURI", "name": "SANTOSH KUMAR", "role": "Welder", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-04-18", "checkOut": "2026-09-18"}, {"id": "stay-133", "roomCode": "A328", "workerId": "482", "surname": "SETHI", "name": "NIRANJAN", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-04-12", "checkOut": "2026-09-12"}, {"id": "stay-134", "roomCode": "A329", "workerId": "432", "surname": "Sukumaran", "name": "Sunilkumar", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-02-27", "checkOut": "2026-07-27"}, {"id": "stay-135", "roomCode": "A329", "workerId": "430", "surname": "Sankaradass", "name": "Muthukumar", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-08", "checkOut": "2026-07-08"}, {"id": "stay-136", "roomCode": "A330", "workerId": "224", "surname": "SINGH", "name": "SURESH BAHADUR", "role": "Welder", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-06-05"}, {"id": "stay-137", "roomCode": "A330", "workerId": "223", "surname": "PANDEY", "name": "GUDDU KUMAR", "role": "Welder", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-28", "checkOut": "2026-06-28"}, {"id": "stay-138", "roomCode": "A331", "workerId": "320", "surname": "PASWAN", "name": "JEEVAN", "role": "Helper", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-02-12", "checkOut": "2026-08-12"}, {"id": "stay-139", "roomCode": "A331", "workerId": "283", "surname": "JAYAVIND", "name": "JAYAVIND", "role": "Pipefitter", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-10", "checkOut": "2026-07-02"}, {"id": "stay-140", "roomCode": "A332", "workerId": "1006", "surname": "Mahto", "name": "Rajan Kumar", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-24", "checkOut": "2026-09-24"}, {"id": "stay-141", "roomCode": "A332", "workerId": "1007", "surname": "Nayak", "name": "Mrutunjaya", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-24", "checkOut": "2026-09-24"}, {"id": "stay-142", "roomCode": "A333", "workerId": "120a", "surname": "PADATULA", "name": "VENKATARAMANA", "role": "Pipefitter", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-02", "checkOut": "2026-07-02"}, {"id": "stay-143", "roomCode": "A333", "workerId": "104", "surname": "Vishnu", "name": "Vyalitharayil Suresh", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-09", "checkOut": "2026-07-09"}, {"id": "stay-144", "roomCode": "A334", "workerId": "205", "surname": "MOSARAF", "name": "MOLLICK", "role": "Welder", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-31", "checkOut": "2026-08-31"}, {"id": "stay-145", "roomCode": "A334", "workerId": "160a", "surname": "SAINI", "name": "TULASI RAO", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-25", "checkOut": "2026-06-25"}, {"id": "stay-146", "roomCode": "A335", "workerId": "475", "surname": "POLISETTY", "name": "VEERABABU", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-15"}, {"id": "stay-147", "roomCode": "A335", "workerId": "72D", "surname": "GEORGE", "name": "BINOY", "role": "Pipefitter", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-06-05"}, {"id": "stay-148", "roomCode": "A336", "workerId": "431", "surname": "Behera", "name": "Appanna", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-12", "checkOut": "2026-08-12"}, {"id": "stay-149", "roomCode": "A336", "workerId": "484", "surname": "NEYYILA", "name": "LAKSHMINARAYANA", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-01"}, {"id": "stay-150", "roomCode": "A336", "workerId": "484", "surname": "NEYYILA", "name": "LAKSHMINARAYANA", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-04-12", "checkOut": "2026-09-12"}, {"id": "stay-152", "roomCode": "A404", "workerId": "222", "surname": "MAHTO", "name": "SATAN", "role": "Welder", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-02-12", "checkOut": "2026-07-12"}, {"id": "stay-153", "roomCode": "A404", "workerId": "313a", "surname": "ARJUN", "name": "KUMAR", "role": "Helper", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-02-12", "checkOut": "2026-07-12"}, {"id": "stay-154", "roomCode": "A405", "workerId": "262", "surname": "SHARMA", "name": "SANTOSH KUMAR", "role": "Helper", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-25", "checkOut": "2026-06-25"}, {"id": "stay-155", "roomCode": "A405", "workerId": "118", "surname": "JAISWAL", "name": "CHANDAN KUMAR", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-17", "checkOut": "2026-07-17"}, {"id": "stay-156", "roomCode": "A406", "workerId": "351", "surname": "YADAV", "name": "RAKESH KUMAR", "role": "Welder", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-06-05"}, {"id": "stay-157", "roomCode": "A406", "workerId": "226", "surname": "YADAW", "name": "PARMANAND", "role": "Welder", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-02-14", "checkOut": "2026-08-14"}, {"id": "stay-158", "roomCode": "A407", "workerId": "143", "surname": "HAIDAR", "name": "ALI", "role": "Rigger", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-04", "checkOut": "2026-07-04"}, {"id": "stay-159", "roomCode": "A407", "workerId": "117a", "surname": "Sharma", "name": "Rakesh", "role": "Millwright", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-02-12", "checkOut": "2026-08-12"}, {"id": "stay-160", "roomCode": "A408", "workerId": "480", "surname": "UPADHYAY", "name": "RAVI KUMAR", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-05-12"}, {"id": "stay-161", "roomCode": "A408", "workerId": "174", "surname": "RAI", "name": "KRISHNA DEV", "role": "Pipefitter", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-02-27", "checkOut": "2026-08-27"}, {"id": "stay-162", "roomCode": "A409", "workerId": "293", "surname": "VOLETI", "name": "SATYA SATISH", "role": "Pipefitter", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-05", "checkOut": "2026-07-04"}, {"id": "stay-163", "roomCode": "A409", "workerId": "119", "surname": "SIVANANDHAM", "name": "KARTHIK", "role": "Millwright", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-04", "checkOut": "2026-07-04"}, {"id": "stay-164", "roomCode": "A410", "workerId": "311", "surname": "MISHRA", "name": "RATNAKAR", "role": "Pipefitter", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-02-24", "checkOut": "2026-08-24"}, {"id": "stay-165", "roomCode": "A410", "workerId": "310", "surname": "Singh", "name": "Prinse Kumar", "role": "Helper", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-25", "checkOut": "2026-06-25"}, {"id": "stay-166", "roomCode": "A411", "workerId": "146", "surname": "SHAH", "name": "MOHD ISHAQ SHER ALI", "role": "Rigger", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-07-15"}, {"id": "stay-167", "roomCode": "A411", "workerId": "144a", "surname": "Gupta", "name": "Kashi Nath", "role": "Rigger", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-10"}, {"id": "stay-168", "roomCode": "A412", "workerId": "261", "surname": "AHIR", "name": "HIRENKUMAR MOHANBHAI", "role": "Helper", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-02-27", "checkOut": "2026-07-27"}, {"id": "stay-169", "roomCode": "A412", "workerId": "346", "surname": "PATEL", "name": "HARISH RAMANBHAI", "role": "Helper", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-02-27", "checkOut": "2026-07-27"}, {"id": "stay-170", "roomCode": "A414", "workerId": "203b", "surname": "DIPU", "name": "VISHWAKARMA", "role": "Welder", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-14", "checkOut": "2026-07-14"}, {"id": "stay-171", "roomCode": "A414", "workerId": "429", "surname": "EDWIN", "name": "SELVARAJ", "role": "Pipefitter", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-03-15"}, {"id": "stay-172", "roomCode": "A416", "workerId": "240b", "surname": "RANEESH CHAKKALAYIL", "name": "HUSSAIN", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-02-15", "checkOut": "2026-08-15"}, {"id": "stay-173", "roomCode": "A416", "workerId": "127", "surname": "SHAFI", "name": "MOHAMMED", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-02-16", "checkOut": "2026-08-16"}, {"id": "stay-174", "roomCode": "A418", "workerId": "125", "surname": "Midhuraj", "name": "Pulikkal Appukuttan", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-08-14"}, {"id": "stay-175", "roomCode": "A418", "workerId": "126", "surname": "Sebastian", "name": "Justin", "role": "Pipefitter", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-08-14"}, {"id": "stay-176", "roomCode": "A420", "workerId": "273a", "surname": "Karni", "name": "Krishna Rao", "role": "Helper", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-02", "checkOut": "2026-07-02"}, {"id": "stay-177", "roomCode": "A420", "workerId": "211", "surname": "Sanjay", "name": "Sahu", "role": "Welder", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-02", "checkOut": "2026-07-02"}, {"id": "stay-178", "roomCode": "A422", "workerId": "122", "surname": "Rakesh", "name": "Kumar Swain", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-02-23", "checkOut": "2026-08-23"}, {"id": "stay-179", "roomCode": "A422", "workerId": "428", "surname": "Jena", "name": "Murali", "role": "Pipefitter", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-08", "checkOut": "2026-07-08"}, {"id": "stay-180", "roomCode": "A424", "workerId": "289", "surname": "Pita", "name": "Dhanaraju", "role": "Helper", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-02-27", "checkOut": "2026-07-27"}, {"id": "stay-181", "roomCode": "A424", "workerId": "123", "surname": "BEHERA", "name": "K BUDHESWAR", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-02-23", "checkOut": "2026-08-23"}, {"id": "stay-183", "roomCode": "A426", "workerId": "204a", "surname": "PANANGATTU MANOHARAN", "name": "MANU", "role": "Welder", "company": "EOS", "nationality": "European", "status": "cancelled", "checkIn": "2026-02-02", "checkOut": "2026-08-02"}, {"id": "stay-184", "roomCode": "A426", "workerId": "192", "surname": "KUMAR", "name": "BILENDRA", "role": "Welder", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-20", "checkOut": "2026-07-20"}, {"id": "stay-185", "roomCode": "A427", "workerId": "129", "surname": "KOSURU", "name": "NAGESWARA RAO", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-02", "checkOut": "2026-07-02"}, {"id": "stay-186", "roomCode": "A427", "workerId": "305", "surname": "PATEL", "name": "PINKALKUMAR BHANABHAI", "role": "Helper", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-25", "checkOut": "2026-06-25"}, {"id": "stay-187", "roomCode": "A428", "workerId": "288a", "surname": "AHMED", "name": "BASHEER", "role": "Helper", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-04-07", "checkOut": "2026-09-07"}, {"id": "stay-188", "roomCode": "A428", "workerId": "489", "surname": "SREEVALSAM VASUDEVAN NAIR", "name": "HARIKRISHNAN", "role": "Helper", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-10"}, {"id": "stay-189", "roomCode": "A429", "workerId": "303", "surname": "BIBINSHA", "name": "BASHEER", "role": "Helper", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-12"}, {"id": "stay-190", "roomCode": "A429", "workerId": "491", "surname": "MANGATTU VIJAYAKUMAR", "name": "VIPINKUMAR", "role": "Helper", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-26"}, {"id": "stay-191", "roomCode": "A430", "workerId": "477", "surname": "AMRITESH", "name": "KUMAR", "role": "Welder", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-12"}, {"id": "stay-192", "roomCode": "A430", "workerId": "477", "surname": "AMRITESH", "name": "KUMAR", "role": "Welder", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-04-30", "checkOut": "2026-09-30"}, {"id": "stay-193", "roomCode": "A430", "workerId": "206a", "surname": "RAUT", "name": "RANJITH", "role": "Welder", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-08", "checkOut": "2026-07-08"}, {"id": "stay-194", "roomCode": "A431", "workerId": "485", "surname": "POTNURU", "name": "TEJESHWAR RAO", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-05-12"}, {"id": "stay-195", "roomCode": "A431", "workerId": "487", "surname": "YEDURU", "name": "RAJU", "role": "Pipefitter", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-05-12"}, {"id": "stay-196", "roomCode": "A432", "workerId": "659", "surname": "GNANAMUTHU", "name": "JAMAL MOHAMED", "role": "Welder", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-05-12"}, {"id": "stay-197", "roomCode": "A432", "workerId": "507b", "surname": "RAPETI", "name": "MURALI MOHAN", "role": "Pipefitter", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-05-12"}, {"id": "stay-198", "roomCode": "A433", "workerId": "306", "surname": "MONDAL", "name": "ANUPAM", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-10", "checkOut": "2026-07-01"}, {"id": "stay-199", "roomCode": "A433", "workerId": "287a", "surname": "Vasupilli", "name": "Harsha Vardhan", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-04-02"}, {"id": "stay-200", "roomCode": "A433", "workerId": "287a", "surname": "Vasupilli", "name": "Harsha Vardhan", "role": "Helper", "company": "EOS", "nationality": "European", "status": "confirmed", "checkIn": "2026-04-20", "checkOut": "2026-08-20"}, {"id": "stay-201", "roomCode": "A434", "workerId": "481", "surname": "MELATHETHIL  RAJENDRAKUMAR", "name": "ANEESH KUMAR", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-06-05"}, {"id": "stay-202", "roomCode": "A434", "workerId": "700", "surname": "MOHANAN", "name": "JAYAN", "role": "Welder", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-06-05"}, {"id": "stay-203", "roomCode": "A435", "workerId": "231C", "surname": "YAMANA", "name": "BHASKARA RAO", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-04", "checkOut": "2026-06-05"}, {"id": "stay-204", "roomCode": "A435", "workerId": "427", "surname": "KARUNAKAR", "name": "RAO YAMANA", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-01-25", "checkOut": "2026-06-25"}, {"id": "stay-205", "roomCode": "A436", "workerId": "280", "surname": "ANIL", "name": "KUMAR", "role": "Pipefitter", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-02-27", "checkOut": "2026-08-27"}, {"id": "stay-206", "roomCode": "A436", "workerId": "201", "surname": "Krishna", "name": "Reddy Reyya", "role": "Welder", "company": "EOS", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-01", "checkOut": "2026-07-01"}, {"id": "stay-207", "roomCode": "A503", "workerId": "959", "surname": "Russo", "name": "Gaetano", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-22", "checkOut": "2026-03-31"}, {"id": "stay-208", "roomCode": "A503", "workerId": "951", "surname": "Asllanaj", "name": "Mario", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-22", "checkOut": "2026-03-31"}, {"id": "stay-209", "roomCode": "A504", "workerId": "949", "surname": "Teodoriuc", "name": "Alexandro", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-09", "checkOut": "2026-03-28"}, {"id": "stay-210", "roomCode": "A504", "workerId": "972", "surname": "Micu", "name": "Razvan", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-09", "checkOut": "2026-03-28"}, {"id": "stay-211", "roomCode": "A505", "workerId": "905", "surname": "Repasi", "name": "Dumitru", "role": "Carpenter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-02-04", "checkOut": "2026-03-13"}, {"id": "stay-212", "roomCode": "A505", "workerId": "904", "surname": "Svet", "name": "Constantin", "role": "Carpenter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-02-04", "checkOut": "2026-03-13"}, {"id": "stay-213", "roomCode": "A506", "workerId": "958", "surname": "Berrittella", "name": "Francesco", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-07", "checkOut": "2026-03-15"}, {"id": "stay-214", "roomCode": "A506", "workerId": "974", "surname": "Marino", "name": "Salvatore", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-07", "checkOut": "2026-03-14"}, {"id": "stay-215", "roomCode": "A507", "workerId": "961", "surname": "Cammarella", "name": "Graziano", "role": "Welder", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-07", "checkOut": "2026-03-23"}, {"id": "stay-216", "roomCode": "A507", "workerId": "953", "surname": "Balbi", "name": "Luigi", "role": "Welder", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-07", "checkOut": "2026-03-21"}, {"id": "stay-217", "roomCode": "A508", "workerId": "976", "surname": "Giuliana", "name": "Vincenzo", "role": "Welder", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-07", "checkOut": "2026-03-21"}, {"id": "stay-218", "roomCode": "A508", "workerId": "878a", "surname": "De Caro", "name": "Andrea", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-07", "checkOut": "2026-03-21"}, {"id": "stay-219", "roomCode": "A508", "workerId": "1026", "surname": "Nizamuddin", "name": "Kharoti", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-31", "checkOut": "2026-04-30"}, {"id": "stay-220", "roomCode": "A508", "workerId": "1027", "surname": "Haider", "name": "Rahmuddin", "role": "Helper", "company": "RMLI", "nationality": "Non-European", "status": "confirmed", "checkIn": "2026-03-31", "checkOut": "2026-04-30"}, {"id": "stay-221", "roomCode": "A509", "workerId": "960", "surname": "Porras", "name": "Miguel", "role": "Welder", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-08", "checkOut": "2026-03-15"}, {"id": "stay-222", "roomCode": "A509", "workerId": "978", "surname": "Ponsini", "name": "Luca", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-15", "checkOut": "2026-03-25"}, {"id": "stay-223", "roomCode": "A510", "workerId": "954", "surname": "Sterie", "name": "Mihai", "role": "Helper", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-09", "checkOut": "2026-04-02"}, {"id": "stay-224", "roomCode": "A510", "workerId": "955", "surname": "Militaru", "name": "Daniel", "role": "Helper", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-09", "checkOut": "2026-04-02"}, {"id": "stay-225", "roomCode": "A511", "workerId": "852", "surname": "Carlessi", "name": "Alex", "role": "Pipefitter", "company": "KOTLO", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-09", "checkOut": "2026-04-03"}, {"id": "stay-226", "roomCode": "A511", "workerId": "852", "surname": "Carlessi", "name": "Alex", "role": "Pipefitter", "company": "KOTLO", "nationality": "European", "status": "confirmed", "checkIn": "2026-04-07", "checkOut": "2026-04-25"}, {"id": "stay-227", "roomCode": "A512", "workerId": "visitor", "surname": "Krajewski", "name": "Dariusz", "role": "Manager", "company": "KOTLO", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-01", "checkOut": "2026-03-11"}, {"id": "stay-228", "roomCode": "A512", "workerId": "862", "surname": "Infusino", "name": "Giovanni", "role": "Pipefitter", "company": "MS", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-20", "checkOut": "2026-04-20"}, {"id": "stay-229", "roomCode": "A514", "workerId": "926", "surname": "Busana", "name": "Leandro", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-05", "checkOut": "2026-03-14"}, {"id": "stay-230", "roomCode": "A514", "workerId": "967", "surname": "Capello", "name": "Giovanni", "role": "Hydrotest Fitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-15", "checkOut": "2026-03-25"}, {"id": "stay-231", "roomCode": "A514", "workerId": "950", "surname": "Dalò", "name": "Arcangelo", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-08", "checkOut": "2026-04-10"}, {"id": "stay-232", "roomCode": "A516", "workerId": "925", "surname": "Valentino", "name": "Antonio", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-05", "checkOut": "2026-03-14"}, {"id": "stay-233", "roomCode": "A516", "workerId": "927", "surname": "Genovese", "name": "Mario", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-05", "checkOut": "2026-03-14"}, {"id": "stay-234", "roomCode": "A516", "workerId": "952", "surname": "Perna", "name": "Orazio", "role": "Welder", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-15", "checkOut": "2026-03-25"}, {"id": "stay-235", "roomCode": "A518", "workerId": "963", "surname": "Caragea", "name": "Lucian", "role": "Helper", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-09", "checkOut": "2026-03-31"}, {"id": "stay-236", "roomCode": "A518", "workerId": "964", "surname": "Andrei", "name": "Adrian Marius", "role": "Helper", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-09", "checkOut": "2026-04-02"}, {"id": "stay-237", "roomCode": "A522", "workerId": "957", "surname": "Micu", "name": "Adrian", "role": "Pipefitter", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-09", "checkOut": "2026-03-28"}, {"id": "stay-238", "roomCode": "A522", "workerId": "965", "surname": "Panait", "name": "Adrian", "role": "Ironworker", "company": "RMLI", "nationality": "European", "status": "confirmed", "checkIn": "2026-03-09", "checkOut": "2026-03-31"}];
+    const STORAGE_KEY = "hotel-fletcher-corrected-v2";
+
+    const CLOUD_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzo5a4J-Ay0BAE4ITAYHu7cJf_rEaeHygW9776z00soYjqo0HivAbZ4eu6ZyOEwVh7SmQ/exec";
+    let cloudSyncInProgress = false;
+    let cloudInitialized = false;
+    let cloudLastLoadedAt = "";
+    let cloudLastSavedAt = "";
+
+    function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
+
+    function formatLocalIsoDate(dateObj) {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+      const d = String(dateObj.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+
+    function normalizeDateValue(value) {
+      if (value === null || value === undefined || value === "") return "";
+      const raw = String(value).trim();
+      if (!raw) return "";
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+      const parsed = new Date(raw);
+      if (!Number.isNaN(parsed.getTime())) {
+        return formatLocalIsoDate(parsed);
+      }
+
+      const match = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+      if (match) return match[1];
+      return raw;
+    }
+
+    function normalizeRoom(room) {
+      return {
+        ...room,
+        code: String(room.code || "").trim().toUpperCase(),
+        typeLabel: String(room.typeLabel || "").trim(),
+        capacity: Number(room.capacity || 0)
+      };
+    }
+
+    function normalizeBooking(booking) {
+      return {
+        ...booking,
+        id: String(booking.id || "").trim(),
+        roomCode: String(booking.roomCode || "").trim().toUpperCase(),
+        workerId: String(booking.workerId || "").trim().toUpperCase(),
+        surname: String(booking.surname || "").trim(),
+        name: String(booking.name || "").trim(),
+        role: String(booking.role || "").trim(),
+        company: String(booking.company || "").trim().toUpperCase(),
+        nationality: String(booking.nationality || "").trim(),
+        status: String(booking.status || "").trim(),
+        checkIn: normalizeDateValue(booking.checkIn),
+        checkOut: normalizeDateValue(booking.checkOut),
+        createdAt: booking.createdAt || "",
+        updatedAt: booking.updatedAt || "",
+        updatedBy: booking.updatedBy || ""
+      };
+    }
+
+    function normalizeStateData(data) {
+      return {
+        rooms: Array.isArray(data.rooms) ? data.rooms.map(normalizeRoom) : deepClone(IMPORTED_ROOMS),
+        stays: Array.isArray(data.stays) ? data.stays.map(normalizeBooking) : deepClone(IMPORTED_STAYS)
+      };
+    }
+
+    function hasLegacyDateFormat(bookings) {
+      return bookings.some(b =>
+        (b.checkIn && !/^\d{4}-\d{2}-\d{2}$/.test(String(b.checkIn).trim())) ||
+        (b.checkOut && !/^\d{4}-\d{2}-\d{2}$/.test(String(b.checkOut).trim()))
+      );
+    }
+
+    function getDefaultState() {
+      return normalizeStateData({ rooms: deepClone(IMPORTED_ROOMS), stays: deepClone(IMPORTED_STAYS) });
+    }
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return getDefaultState();
+        const data = JSON.parse(raw);
+        return normalizeStateData({
+          rooms: Array.isArray(data.rooms) ? data.rooms : deepClone(IMPORTED_ROOMS),
+          stays: Array.isArray(data.stays) ? data.stays : deepClone(IMPORTED_STAYS)
+        });
+      } catch {
+        return getDefaultState();
+      }
+    }
+
+    function persistLocalState() {
+      state = normalizeStateData(state);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function setSyncStatus(message) {
+      if (el.syncStatus) el.syncStatus.textContent = message;
+    }
+
+    async function loadCloudState(showNotice = false) {
+      try {
+        cloudSyncInProgress = true;
+        setSyncStatus("Cloud: loading...");
+        const res = await fetch(CLOUD_SCRIPT_URL + "?action=load&_ts=" + Date.now(), {
+          method: "GET",
+          cache: "no-store"
+        });
+        const data = await res.json();
+        if (!data || data.ok !== true) throw new Error(data && data.error ? data.error : "Invalid cloud response");
+
+        const remoteRooms = Array.isArray(data.rooms) ? data.rooms : [];
+        const remoteBookings = Array.isArray(data.bookings) ? data.bookings : [];
+        const legacyDatesFound = hasLegacyDateFormat(remoteBookings);
+
+        if (!remoteRooms.length && !remoteBookings.length) {
+          await saveCloudState(true);
+          cloudInitialized = true;
+          setSyncStatus("Cloud: initialized from local data");
+          if (showNotice) flashNotice(el.globalActionNotice, "ok", "Cloud initialized with local data.");
+          cloudSyncInProgress = false;
+          return;
+        }
+
+        state = normalizeStateData({
+          rooms: remoteRooms,
+          stays: remoteBookings
+        });
+        persistLocalState();
+        cloudInitialized = true;
+        cloudLastLoadedAt = new Date().toISOString();
+        renderAll();
+
+        if (legacyDatesFound) {
+          await saveCloudState(false);
+          setSyncStatus("Cloud: loaded and normalized");
+          if (showNotice) flashNotice(el.globalActionNotice, "ok", "Cloud data reloaded and date format normalized.");
+        } else {
+          setSyncStatus("Cloud: loaded successfully");
+          if (showNotice) flashNotice(el.globalActionNotice, "ok", "Cloud data reloaded successfully.");
+        }
+      } catch (err) {
+        console.error(err);
+        setSyncStatus("Cloud: load error");
+        if (showNotice) flashNotice(el.globalActionNotice, "bad", "Cloud reload failed.");
+      } finally {
+        cloudSyncInProgress = false;
+      }
+    }
+
+    async function saveCloudState(isInit = false) {
+      try {
+        cloudSyncInProgress = true;
+        setSyncStatus(isInit ? "Cloud: initializing..." : "Cloud: saving...");
+        state = normalizeStateData(state);
+        persistLocalState();
+        const payload = {
+          rooms: state.rooms,
+          bookings: state.stays
+        };
+        const res = await fetch(CLOUD_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!data || data.ok !== true) throw new Error(data && data.error ? data.error : "Cloud save failed");
+        cloudInitialized = true;
+        cloudLastSavedAt = new Date().toISOString();
+        setSyncStatus(isInit ? "Cloud: initialized" : "Cloud: saved successfully");
+      } catch (err) {
+        console.error(err);
+        setSyncStatus("Cloud: save error");
+        flashNotice(el.globalActionNotice, "bad", "Cloud save failed.");
+      } finally {
+        cloudSyncInProgress = false;
+      }
+    }
+
+    function save() {
+      persistLocalState();
+      saveCloudState(false);
+    }
+
+    function saveState() { save(); }
+    function uid() { return "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36); }
+    function todayISO() { return formatLocalIsoDate(new Date()); }
+    function setDefaultStayDates() {
+      if (!el.checkIn.value) el.checkIn.value = todayISO();
+      if (!el.checkOut.value) {
+        const d = new Date((el.checkIn.value || todayISO()) + "T00:00:00");
+        d.setDate(d.getDate() + 7);
+        el.checkOut.value = formatLocalIsoDate(d);
+      }
+    }
+    function fmtDate(v) { if (!v) return "-"; const d = new Date(v + "T00:00:00"); return d.toLocaleDateString("it-IT"); }
+    function daysDiff(a, b) { return Math.round((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 86400000) + 1; }
+    function overlaps(stay, date) {
+      if (!stay.checkIn || !stay.checkOut || !date) return false;
+      return stay.checkIn <= date && stay.checkOut > date;
+    }
+    function rangesOverlap(startA, endA, startB, endB) {
+      if (!startA || !endA || !startB || !endB) return false;
+      return startA < endB && endA > startB;
+    }
+    function isIsoDate(value) {
+      return /^\d{4}-\d{2}-\d{2}$/.test(String(value || "").trim());
+    }
+    function getBookingsForPeriod(roomCode, checkIn, checkOut, excludeStayId) {
+      return state.stays.filter(s =>
+        s.roomCode === roomCode &&
+        activeStatus(s) &&
+        s.id !== excludeStayId &&
+        s.checkIn && s.checkOut &&
+        rangesOverlap(s.checkIn, s.checkOut, checkIn, checkOut)
+      );
+    }
+    function roomUsageForPeriod(roomCode, checkIn, checkOut, excludeStayId) {
+      const room = state.rooms.find(r => r.code === roomCode);
+      const capacity = room ? Number(room.capacity) || 0 : 0;
+      const booked = getBookingsForPeriod(roomCode, checkIn, checkOut, excludeStayId).length;
+      return { room, capacity, booked, available: Math.max(capacity - booked, 0) };
+    }
+    function roomIsFullForPeriod(roomCode, checkIn, checkOut, excludeStayId) {
+      const room = state.rooms.find(r => r.code === roomCode);
+      const capacity = room ? Number(room.capacity) || 0 : 0;
+      const booked = state.stays.filter(s =>
+        s.roomCode === roomCode &&
+        activeStatus(s) &&
+        s.id !== excludeStayId &&
+        s.checkIn && s.checkOut &&
+        rangesOverlap(s.checkIn, s.checkOut, checkIn, checkOut)
+      ).length;
+      return booked >= capacity;
+    }
+    function activeStatus(stay) { return (stay.status || "").toLowerCase() !== "cancelled"; }
+    function badgeStatus(room) {
+      if (room.occupied > room.capacity) return '<span class="badge bad">Overbooking</span>';
+      if (room.available === 0) return '<span class="badge warn">Completa</span>';
+      return '<span class="badge ok">Disponibile</span>';
+    }
+    function bookingBadge(status) {
+      const s = String(status || "unknown").toLowerCase();
+      if (s === "confirmed") return '<span class="badge ok">confirmed</span>';
+      if (s === "cancelled") return '<span class="badge bad">cancelled</span>';
+      return '<span class="badge warn">unknown</span>';
+    }
+    function n(v) { return String(v || "").trim().toLowerCase(); }
+    
+    function capitalizeWords(str) {
+      return String(str || "")
+        .toLowerCase()
+        .replace(/\b\w/g, c => c.toUpperCase());
+    }
+    function upperText(str) {
+      return String(str || "").toUpperCase();
+    }
+
+    function esc(v) { return String(v ?? "").replace(/[&<>"']/g, s => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[s]); }
+
+    function showNotice(node, type, message) {
+      if (!node) return;
+      node.className = `notice show ${type}`;
+      node.textContent = message;
+    }
+    function clearNotice(node) {
+      if (!node) return;
+      node.className = "notice";
+      node.textContent = "";
+    }
+
+    function flashNotice(node, type, message, timeout = 3500) {
+      showNotice(node, type, message);
+      if (!node) return;
+      const token = String(Date.now()) + Math.random();
+      node.dataset.noticeToken = token;
+      setTimeout(() => {
+        if (node.dataset.noticeToken === token) clearNotice(node);
+      }, timeout);
+    }
+
+    const BULK_DRAFT_KEY = "hotel-fletcher-bulk-draft-v1";
+    let state = load();
+    let editingStayId = null;
+    let stayQuickFilter = "all";
+    let staySort = { key: "period", dir: "desc" };
+    let bulkRows = [];
+    let currentBulkStatusIndex = 0;
+    let lastDeletedItem = null;
+    const el = {
+      today: document.getElementById("today"), roomsTable: document.getElementById("roomsTable"), roomCode: document.getElementById("roomCode"),
+      roomType: document.getElementById("roomType"), roomCapacity: document.getElementById("roomCapacity"), addRoomBtn: document.getElementById("addRoomBtn"),
+      stayRoom: document.getElementById("stayRoom"), workerId: document.getElementById("workerId"),
+      surname: document.getElementById("surname"), name: document.getElementById("name"), role: document.getElementById("role"), company: document.getElementById("company"),
+      nationality: document.getElementById("nationality"), status: document.getElementById("status"), checkIn: document.getElementById("checkIn"), checkOut: document.getElementById("checkOut"),
+      addStayBtn: document.getElementById("addStayBtn"), stayAvailabilityBox: document.getElementById("stayAvailabilityBox"), roomFormNotice: document.getElementById("roomFormNotice"), stayFormNotice: document.getElementById("stayFormNotice"), searchStay: document.getElementById("searchStay"), filterRoom: document.getElementById("filterRoom"),
+      staysTable: document.getElementById("staysTable"), historyGrid: document.getElementById("historyGrid"), exportHistoryBtn: document.getElementById("exportHistoryBtn"), exportRoomsBtn: document.getElementById("exportRoomsBtn"), kpiRooms: document.getElementById("kpiRooms"), kpiStays: document.getElementById("kpiStays"),
+      kpiCapacity: document.getElementById("kpiCapacity"), kpiOccupied: document.getElementById("kpiOccupied"), kpiAvailable: document.getElementById("kpiAvailable"),
+      kpiCompanies: document.getElementById("kpiCompanies"), roomOccupantsModal: document.getElementById("roomOccupantsModal"),
+      roomOccupantsTitle: document.getElementById("roomOccupantsTitle"), roomOccupantsSubtitle: document.getElementById("roomOccupantsSubtitle"),
+      roomOccupantsList: document.getElementById("roomOccupantsList"), swapRoomModal: document.getElementById("swapRoomModal"),
+      swapSearchA: document.getElementById("swapSearchA"), swapSearchB: document.getElementById("swapSearchB"),
+      swapStayA: document.getElementById("swapStayA"), swapStayB: document.getElementById("swapStayB"),
+      swapRoomPreview: document.getElementById("swapRoomPreview"), confirmSwapRoomBtn: document.getElementById("confirmSwapRoomBtn"),
+      historyFrom: document.getElementById("historyFrom"), historyTo: document.getElementById("historyTo"),
+      applyHistoryFilterBtn: document.getElementById("applyHistoryFilterBtn"), resetHistoryFilterBtn: document.getElementById("resetHistoryFilterBtn"),
+      exportJsonBtn: document.getElementById("exportJsonBtn"), exportExcelHotelBtn: document.getElementById("exportExcelHotelBtn"), importJsonBtn: document.getElementById("importJsonBtn"), importJsonFile: document.getElementById("importJsonFile"), reloadCloudBtn: document.getElementById("reloadCloudBtn"), syncNowBtn: document.getElementById("syncNowBtn"), syncStatus: document.getElementById("syncStatus"), globalActionNotice: document.getElementById("globalActionNotice"), bulkCount: document.getElementById("bulkCount"), bulkCompany: document.getElementById("bulkCompany"), bulkNationality: document.getElementById("bulkNationality"), bulkRole: document.getElementById("bulkRole"), bulkCheckIn: document.getElementById("bulkCheckIn"), bulkCheckOut: document.getElementById("bulkCheckOut"), bulkGenerateBtn: document.getElementById("bulkGenerateBtn"), bulkAssignRoomsBtn: document.getElementById("bulkAssignRoomsBtn"), bulkSaveBtn: document.getElementById("bulkSaveBtn"), bulkResetBtn: document.getElementById("bulkResetBtn"), bulkFormNotice: document.getElementById("bulkFormNotice"), bulkAvailabilityBox: document.getElementById("bulkAvailabilityBox"), bulkTableBody: document.getElementById("bulkTableBody"), bulkSummary: document.getElementById("bulkSummary"), bulkDraftStatus: document.getElementById("bulkDraftStatus")
+    };
+    el.today.value = todayISO();
+    if (el.bulkCheckIn && !el.bulkCheckIn.value) el.bulkCheckIn.value = todayISO();
+    if (el.bulkCheckOut && !el.bulkCheckOut.value) { const d = new Date(todayISO() + "T00:00:00"); d.setDate(d.getDate() + 7); el.bulkCheckOut.value = d.toISOString().slice(0, 10); }
+
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.tab).classList.add("active");
+      });
+    });
+
+    function roomStatus() {
+      const date = el.today.value || todayISO();
+      return state.rooms.slice().sort((a, b) => a.code.localeCompare(b.code)).map(room => {
+        const capacity = Number(room.capacity) || 0;
+        const occupied = state.stays.filter(s => s.roomCode === room.code && activeStatus(s) && overlaps(s, date)).length;
+        return { ...room, capacity, occupied, available: Math.max(capacity - occupied, 0) };
+      });
+    }
+
+    function renderRoomOptions() {
+      const rooms = state.rooms.slice().sort((a, b) => a.code.localeCompare(b.code));
+      const currentFilter = el.filterRoom.value || "all";
+      const currentStayRoom = el.stayRoom.value || "";
+      el.stayRoom.innerHTML = '<option value="">Seleziona stanza</option>' + rooms.map(r => `<option value="${esc(r.code)}">${esc(r.code)} · ${esc(r.typeLabel)} · cap. ${esc(r.capacity)}</option>`).join("");
+      el.filterRoom.innerHTML = '<option value="all">Tutte le stanze</option>' + rooms.map(r => `<option value="${esc(r.code)}">${esc(r.code)}</option>`).join("");
+      if ([...el.stayRoom.options].some(o => o.value === currentStayRoom)) el.stayRoom.value = currentStayRoom;
+      if ([...el.filterRoom.options].some(o => o.value === currentFilter)) el.filterRoom.value = currentFilter;
+    }
+
+    function renderRooms() {
+      const rows = roomStatus();
+      el.roomsTable.innerHTML = rows.map(room => {
+        const usedPct = room.capacity ? Math.min(100, Math.round((room.occupied / room.capacity) * 100)) : 0;
+        return `
+        <tr>
+          <td>
+            <button
+              type="button"
+              class="link-room room-code-pill"
+              style="background:none"
+              data-room="${esc(room.code)}"
+              onclick="showRoomOccupants(this.dataset.room)"
+            >${esc(room.code)}</button>
+          </td>
+          <td>
+            <div><strong>${esc(room.typeLabel)}</strong></div>
+            <div class="small room-meta">capienza ${room.capacity} · disponibili ${room.available}</div>
+          </td>
+          <td>${room.capacity}</td>
+          <td>
+            <span class="occ-bar"><span style="width:${usedPct}%"></span></span>
+            <strong>${room.occupied}</strong>
+          </td>
+          <td>${room.available}</td>
+          <td>${badgeStatus(room)}</td>
+          <td class="right"><button class="btn secondary" onclick="deleteRoom('${esc(room.code)}')">Elimina</button></td>
+        </tr>
+      `}).join("");
+    }
+
+    function filteredStays() {
+      const q = n(el.searchStay.value);
+      const room = el.filterRoom.value || "all";
+      const today = el.today.value || todayISO();
+
+      let rows = state.stays.filter(s => room === "all" ? true : s.roomCode === room)
+        .filter(s => !q || [s.roomCode, s.workerId, s.surname, s.name, s.role, s.company, s.nationality, s.status].join(" ").toLowerCase().includes(q));
+
+      rows = rows.filter(s => {
+        if (stayQuickFilter === "today") return activeStatus(s) && overlaps(s, today);
+        if (stayQuickFilter === "arrivals") return s.checkIn === today;
+        if (stayQuickFilter === "departures") return s.checkOut === today;
+        if (stayQuickFilter === "future") return s.checkIn && s.checkIn > today;
+        return true;
+      });
+
+      rows.sort((a, b) => {
+        let cmp = 0;
+        if (staySort.key === "worker") cmp = `${a.surname || ""} ${a.name || ""}`.localeCompare(`${b.surname || ""} ${b.name || ""}`);
+        else if (staySort.key === "room") cmp = String(a.roomCode || "").localeCompare(String(b.roomCode || ""));
+        else if (staySort.key === "status") cmp = String(a.status || "").localeCompare(String(b.status || ""));
+        else cmp = String(a.checkIn || "").localeCompare(String(b.checkIn || ""));
+        return staySort.dir === "asc" ? cmp : -cmp;
+      });
+
+      return rows;
+    }
+
+    function renderStaySortIndicators() {
+      document.querySelectorAll("#stays thead th.sortable").forEach(th => {
+        const key = th.dataset.sort;
+        const ind = th.querySelector(".sort-ind");
+        if (!ind) return;
+        ind.textContent = staySort.key === key ? (staySort.dir === "asc" ? "▲" : "▼") : "";
+      });
+    }
+
+    function renderQuickFilterButtons() {
+      document.querySelectorAll("#stayQuickFilters .quick-filter-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.filter === stayQuickFilter);
+      });
+    }
+
+    function renderStays() {
+      const rows = filteredStays();
+      const nationalityOptions = Array.from(el.nationality.options).map(o => `<option value="${esc(o.value)}">${esc(o.textContent)}</option>`).join("");
+      const companyOptions = '<option value="">Seleziona azienda</option><option value="EOS">EOS</option><option value="MS">MS</option><option value="RMLI">RMLI</option><option value="KOTLO">KOTLO</option>';
+      const statusOptions = '<option value="confirmed">confirmed</option><option value="unknown">unknown</option><option value="cancelled">cancelled</option>';
+
+      el.staysTable.innerHTML = rows.map(stay => {
+        const isEditing = editingStayId === stay.id;
+
+        if (isEditing) {
+          return `
+        <tr>
+          <td>
+            <input class="inline-edit" id="edit-surname-${esc(stay.id)}" value="${esc(stay.surname)}" placeholder="Cognome" />
+            <input class="inline-edit" id="edit-name-${esc(stay.id)}" value="${esc(stay.name)}" placeholder="Nome" style="margin-top:6px" />
+            <div class="small" style="margin-top:6px">ID lavoratore</div>
+            <input class="inline-edit" id="edit-workerId-${esc(stay.id)}" value="${upperText(stay.workerId)}" />
+            <div class="small" style="margin-top:6px">Role</div>
+            <input class="inline-edit" id="edit-role-${esc(stay.id)}" value="${esc(stay.role)}" list="roleSuggestions" />
+            <div class="small" style="margin-top:6px">Nazionalità</div>
+            <select class="inline-edit" id="edit-nationality-${esc(stay.id)}">${nationalityOptions}</select>
+          </td>
+          <td>
+            <div class="small">Stanza</div>
+            <select class="inline-edit" id="edit-roomCode-${esc(stay.id)}">${state.rooms.slice().sort((a,b) => a.code.localeCompare(b.code)).map(r => `<option value="${esc(r.code)}">${esc(r.code)}</option>`).join("")}</select>
+            <div class="small" style="margin-top:6px">Company</div>
+            <select class="inline-edit" id="edit-company-${esc(stay.id)}">${companyOptions}</select>
+          </td>
+          <td>
+            <div class="small">Check-in</div>
+            <input class="inline-edit" id="edit-checkIn-${esc(stay.id)}" type="date" value="${esc(stay.checkIn)}" />
+            <div class="small" style="margin-top:6px">Check-out</div>
+            <input class="inline-edit" id="edit-checkOut-${esc(stay.id)}" type="date" value="${esc(stay.checkOut)}" />
+            <div class="small" style="margin-top:6px">Durata: ${stay.checkIn && stay.checkOut ? daysDiff(stay.checkIn, stay.checkOut) : "-"}</div>
+          </td>
+          <td><select class="inline-edit" id="edit-status-${esc(stay.id)}">${statusOptions}</select></td>
+          <td class="right">
+            <div class="inline-actions">
+              <button class="btn" onclick="saveInlineStay('${esc(stay.id)}')">Salva</button>
+              <button class="btn secondary" onclick="cancelInlineEdit()">Annulla</button>
+            </div>
+          </td>
+        </tr>
+      `;
+        }
+
+        const fullName = `${capitalizeWords(stay.surname)} ${capitalizeWords(stay.name)}`.trim();
+        const periodLabel = stay.checkIn && stay.checkOut ? `${fmtDate(stay.checkIn)} → ${fmtDate(stay.checkOut)}` : "-";
+        const daysLabel = stay.checkIn && stay.checkOut ? `${daysDiff(stay.checkIn, stay.checkOut)} giorni` : "-";
+        const today = el.today.value || todayISO();
+        let timingHint = "";
+        if (stay.checkIn === today) timingHint = `<span class="meta-chip">Arrivo oggi</span>`;
+        else if (stay.checkOut === today) timingHint = `<span class="meta-chip">Partenza oggi</span>`;
+        else if (stay.checkOut && stay.checkOut < today) timingHint = `<span class="meta-chip">Terminato</span>`;
+        else if (stay.checkIn && stay.checkIn > today) timingHint = `<span class="meta-chip">Futuro</span>`;
+
+        return `
+        <tr>
+          <td>
+            <div class="stay-main">
+              <div class="stay-name">${fullName || "-"}</div>
+            </div>
+            <div class="stay-meta">
+              <span class="meta-chip">ID ${upperText(stay.workerId) || "-"}</span>
+              <span class="meta-chip">${upperText(stay.company) || "-"}</span>
+              <span class="meta-chip">${capitalizeWords(stay.nationality) || "-"}</span>
+              ${timingHint}
+            </div>
+            <div class="small" style="margin-top:5px"><strong>Ruolo:</strong> ${capitalizeWords(stay.role) || "-"}</div>
+          </td>
+          <td>
+            <div><span class="room-code-pill">${esc(stay.roomCode)}</span></div>
+            <div class="small" style="margin-top:5px">${upperText(stay.company) || "-"}</div>
+          </td>
+          <td>
+            <div class="period-box">
+              <div class="period-top">${periodLabel}</div>
+              <div class="period-bottom">${daysLabel}</div>
+            </div>
+          </td>
+          <td>${bookingBadge(stay.status)}</td>
+          <td class="right">
+            <div class="stay-actions">
+              <button class="btn secondary" onclick="editStayDates('${esc(stay.id)}')">Modifica</button>
+              <button class="btn secondary" onclick="openSwapRoomModal('${esc(stay.id)}')">Scambia</button>
+              <button class="btn secondary" onclick="deleteStay('${esc(stay.id)}')">Elimina</button>
+            </div>
+          </td>
+        </tr>
+      `;
+      }).join("");
+
+      renderStaySortIndicators();
+      renderQuickFilterButtons();
+
+      if (editingStayId) {
+        const stay = state.stays.find(s => s.id === editingStayId);
+        if (stay) {
+          const setValue = (id, value) => {
+            const node = document.getElementById(id);
+            if (node) node.value = value || "";
+          };
+          setValue(`edit-nationality-${stay.id}`, stay.nationality || "");
+          setValue(`edit-roomCode-${stay.id}`, stay.roomCode || "");
+          setValue(`edit-company-${stay.id}`, upperText(stay.company || ""));
+          setValue(`edit-status-${stay.id}`, (stay.status || "unknown").toLowerCase());
+        }
+      }
+    }
+
+    function parseDateOnly(value) {
+      if (!value) return null;
+      const d = new Date(value + "T00:00:00");
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+
+    function countNightsInRange(checkIn, checkOut, fromValue = "", toValue = "") {
+      const startBase = parseDateOnly(checkIn);
+      const endBase = parseDateOnly(checkOut);
+      if (!startBase || !endBase || endBase <= startBase) return 0;
+
+      let start = new Date(startBase);
+      let end = new Date(endBase);
+
+      const fromDate = parseDateOnly(fromValue);
+      const toDate = parseDateOnly(toValue);
+
+      if (fromDate && fromDate > start) start = fromDate;
+      if (toDate && toDate < end) end = toDate;
+
+      const diff = end - start;
+      return diff > 0 ? Math.round(diff / 86400000) : 0;
+    }
+
+    function countUniqueRoomNights(stays, fromValue = "", toValue = "") {
+      const occupiedDays = new Set();
+
+      stays.forEach(stay => {
+        const startBase = parseDateOnly(stay.checkIn);
+        const endBase = parseDateOnly(stay.checkOut);
+        if (!startBase || !endBase || endBase <= startBase) return;
+
+        let start = new Date(startBase);
+        let end = new Date(endBase);
+
+        const fromDate = parseDateOnly(fromValue);
+        const toDate = parseDateOnly(toValue);
+
+        if (fromDate && fromDate > start) start = fromDate;
+        if (toDate && toDate < end) end = toDate;
+
+        for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+          occupiedDays.add(d.toISOString().slice(0, 10));
+        }
+      });
+
+      return occupiedDays.size;
+    }
+
+    function renderHistory() {
+      const from = el.historyFrom ? el.historyFrom.value : "";
+      const to = el.historyTo ? el.historyTo.value : "";
+      const rooms = state.rooms.slice().sort((a, b) => a.code.localeCompare(b.code));
+
+      el.historyGrid.innerHTML = rooms.map(room => {
+        const roomStays = state.stays
+          .filter(stay => stay.roomCode === room.code)
+          .sort((a, b) => String(a.checkIn || "").localeCompare(String(b.checkIn || "")));
+
+        const mapped = roomStays.map(stay => ({
+          stay,
+          nights: countNightsInRange(stay.checkIn, stay.checkOut, from, to)
+        }));
+
+        const visible = (from || to) ? mapped.filter(x => x.nights > 0) : mapped;
+        const totalNights = countUniqueRoomNights(roomStays, from, to);
+
+        return `
+          <div class="history-room">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+              <div>
+                <strong>Stanza ${esc(room.code)}</strong>
+                <div class="small">${esc(room.typeLabel)} · capienza ${room.capacity}</div>
+              </div>
+              <div class="badge ok">Notti camera: ${totalNights}</div>
+            </div>
+            ${(from || to) ? `<div class="small" style="margin-top:8px">Periodo filtro: ${from ? fmtDate(from) : "inizio"} → ${to ? fmtDate(to) : "fine"}</div>` : ""}
+            ${visible.length ? visible.map(item => {
+              const stay = item.stay;
+              const fullName = `${capitalizeWords(stay.surname)} ${capitalizeWords(stay.name)}`.trim() || "-";
+              return `
+                <div class="stay-item">
+                  <div><strong>${fullName}</strong></div>
+                  <div class="small">Azienda: ${upperText(stay.company) || "-"} · Stato: ${stay.status || "-"}</div>
+                  <div class="small">Periodo: ${stay.checkIn ? fmtDate(stay.checkIn) : "-"} → ${stay.checkOut ? fmtDate(stay.checkOut) : "-"}</div>
+                  ${(from || to) ? `<div class="small"><strong>Notti nel periodo:</strong> ${item.nights}</div>` : ""}
+                </div>
+              `;
+            }).join("") : '<div class="small" style="margin-top:10px">Nessun soggiorno nel periodo selezionato.</div>'}
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderKpi() {
+      const status = roomStatus();
+      const totalCapacity = status.reduce((s, r) => s + r.capacity, 0);
+      const occupied = status.reduce((s, r) => s + r.occupied, 0);
+      const companies = new Set(state.stays.map(s => s.company).filter(Boolean)).size;
+      el.kpiRooms.textContent = state.rooms.length;
+      el.kpiStays.textContent = state.stays.length;
+      el.kpiCapacity.textContent = totalCapacity;
+      el.kpiOccupied.textContent = occupied;
+      el.kpiAvailable.textContent = Math.max(totalCapacity - occupied, 0);
+      el.kpiCompanies.textContent = companies;
+    }
+
+    function renderRoomOccupants(roomCode) {
+      const date = el.today.value || todayISO();
+      const room = state.rooms.find(r => r.code === roomCode);
+      const currentOccupants = state.stays
+        .filter(s => s.roomCode === roomCode && activeStatus(s) && overlaps(s, date))
+        .sort((a, b) => (a.surname || "").localeCompare(b.surname || "") || (a.name || "").localeCompare(b.name || ""));
+      const futureOccupants = state.stays
+        .filter(s => s.roomCode === roomCode && activeStatus(s) && s.checkIn && s.checkIn > date)
+        .sort((a, b) => (a.checkIn || "").localeCompare(b.checkIn || "") || (a.surname || "").localeCompare(b.surname || "") || (a.name || "").localeCompare(b.name || ""));
+
+      el.roomOccupantsTitle.textContent = "Occupazione stanza " + roomCode;
+      el.roomOccupantsSubtitle.textContent = "Data di riferimento: " + fmtDate(date) + (room ? " · Capienza " + room.capacity + " · Tipo " + room.typeLabel : "");
+
+      const currentHtml = currentOccupants.length
+        ? currentOccupants.map(stay => `
+        <div class="occupant-item">
+          <strong>${capitalizeWords(stay.surname)} ${capitalizeWords(stay.name)}</strong><br>
+          <span class="small">ID: ${upperText(stay.workerId)} · Azienda: ${upperText(stay.company)}</span><br>
+          <span class="small">Ruolo: ${capitalizeWords(stay.role)} · Nazionalità: ${capitalizeWords(stay.nationality)}</span>
+          <div style="margin-top:6px">${fmtDate(stay.checkIn)} - ${fmtDate(stay.checkOut)}</div>
+        </div>
+      `).join("")
+        : '<div class="occupant-item small">Nessun occupante presente in questa data.</div>';
+
+      const futureHtml = futureOccupants.length
+        ? futureOccupants.map(stay => `
+        <div class="occupant-item">
+          <strong>${capitalizeWords(stay.surname)} ${capitalizeWords(stay.name)}</strong><br>
+          <span class="small">ID: ${upperText(stay.workerId)} · Azienda: ${upperText(stay.company)}</span><br>
+          <span class="small">Ruolo: ${capitalizeWords(stay.role)} · Nazionalità: ${capitalizeWords(stay.nationality)}</span>
+          <div style="margin-top:6px">${fmtDate(stay.checkIn)} - ${fmtDate(stay.checkOut)}</div>
+        </div>
+      `).join("")
+        : '<div class="occupant-item small">Nessun occupante futuro già prenotato.</div>';
+
+      el.roomOccupantsList.innerHTML = `
+        <div style="font-weight:bold;margin-top:4px">Occupanti attuali</div>
+        ${currentHtml}
+        <div style="font-weight:bold;margin-top:18px">Occupanti futuri</div>
+        ${futureHtml}
+      `;
+    }
+
+    window.showRoomOccupants = function(roomCode) {
+      renderRoomOccupants(roomCode);
+      el.roomOccupantsModal.classList.add("open");
+    };
+
+    window.closeRoomOccupants = function() {
+      el.roomOccupantsModal.classList.remove("open");
+    };
+
+    el.roomOccupantsModal.addEventListener("click", function(e) {
+      if (e.target === el.roomOccupantsModal) closeRoomOccupants();
+    });
+
+    el.swapRoomModal.addEventListener("click", function(e) {
+      if (e.target === el.swapRoomModal) closeSwapRoomModal();
+    });
+
+    function getSwapCandidates() {
+      const date = el.today.value || todayISO();
+      return state.stays
+        .filter(stay => activeStatus(stay) && overlaps(stay, date))
+        .sort((a, b) =>
+          String(a.roomCode || "").localeCompare(String(b.roomCode || "")) ||
+          String(a.surname || "").localeCompare(String(b.surname || "")) ||
+          String(a.name || "").localeCompare(String(b.name || ""))
+        );
+    }
+
+    function swapCandidateText(stay) {
+      const fullName = `${capitalizeWords(stay.surname)} ${capitalizeWords(stay.name)}`.trim() || "(senza nome)";
+      return `${stay.roomCode || "-"} · ${fullName} · ${upperText(stay.company) || "-"}`;
+    }
+
+    function fillSwapSelect(selectEl, query, selectedId) {
+      const q = String(query || "").trim().toLowerCase();
+      const candidates = getSwapCandidates().filter(stay => {
+        if (!q) return true;
+        const hay = [stay.roomCode || "", stay.surname || "", stay.name || "", stay.company || "", stay.workerId || ""].join(" ").toLowerCase();
+        return hay.includes(q);
+      });
+      selectEl.innerHTML = candidates.map(stay => `<option value="${esc(stay.id)}">${esc(swapCandidateText(stay))}</option>`).join("");
+      if (selectedId && candidates.some(stay => stay.id === selectedId)) selectEl.value = selectedId;
+    }
+
+    function refreshSwapModal() {
+      const selectedA = el.swapStayA.value;
+      const selectedB = el.swapStayB.value;
+      fillSwapSelect(el.swapStayA, el.swapSearchA.value, selectedA);
+      fillSwapSelect(el.swapStayB, el.swapSearchB.value, selectedB);
+      updateSwapRoomPreview();
+    }
+
+    function updateSwapRoomPreview() {
+      const stayA = state.stays.find(s => s.id === el.swapStayA.value);
+      const stayB = state.stays.find(s => s.id === el.swapStayB.value);
+
+      if (!stayA || !stayB) {
+        el.swapRoomPreview.innerHTML = "Seleziona due persone per vedere l’anteprima dello scambio.";
+        return;
+      }
+      if (stayA.id === stayB.id) {
+        el.swapRoomPreview.innerHTML = "Hai selezionato la stessa persona due volte. Scegli due persone diverse.";
+        return;
+      }
+
+      const nameA = `${capitalizeWords(stayA.surname)} ${capitalizeWords(stayA.name)}`.trim() || "(senza nome)";
+      const nameB = `${capitalizeWords(stayB.surname)} ${capitalizeWords(stayB.name)}`.trim() || "(senza nome)";
+      el.swapRoomPreview.innerHTML = `
+        <strong>Anteprima scambio</strong><br>
+        ${nameA}: <strong>${esc(stayA.roomCode || "-")}</strong> → <strong>${esc(stayB.roomCode || "-")}</strong><br>
+        ${nameB}: <strong>${esc(stayB.roomCode || "-")}</strong> → <strong>${esc(stayA.roomCode || "-")}</strong>
+      `;
+    }
+
+    window.openSwapRoomModal = function(prefillStayId = "") {
+      el.swapSearchA.value = "";
+      el.swapSearchB.value = "";
+      fillSwapSelect(el.swapStayA, "", prefillStayId);
+      fillSwapSelect(el.swapStayB, "", "");
+      if (prefillStayId) el.swapStayA.value = prefillStayId;
+      updateSwapRoomPreview();
+      el.swapRoomModal.classList.add("open");
+    };
+
+    window.closeSwapRoomModal = function() {
+      el.swapRoomModal.classList.remove("open");
+    };
+
+    function confirmSwapRoom() {
+      const stayA = state.stays.find(s => s.id === el.swapStayA.value);
+      const stayB = state.stays.find(s => s.id === el.swapStayB.value);
+
+      if (!stayA || !stayB) { alert("Seleziona due persone."); return; }
+      if (stayA.id === stayB.id) { alert("Devi selezionare due persone diverse."); return; }
+
+      const nameA = `${capitalizeWords(stayA.surname)} ${capitalizeWords(stayA.name)}`.trim() || "(senza nome)";
+      const nameB = `${capitalizeWords(stayB.surname)} ${capitalizeWords(stayB.name)}`.trim() || "(senza nome)";
+      const ok = confirm(`Confermi lo scambio camere?\n\n${nameA}: ${stayA.roomCode || "-"} → ${stayB.roomCode || "-"}\n${nameB}: ${stayB.roomCode || "-"} → ${stayA.roomCode || "-"}`);
+      if (!ok) return;
+
+      const roomA = stayA.roomCode;
+      stayA.roomCode = stayB.roomCode;
+      stayB.roomCode = roomA;
+
+      closeSwapRoomModal();
+      saveState();
+      renderAll();
+      alert("Scambio camere completato.");
+    }
+
+    function csvEscape(value) {
+      const v = String(value ?? "");
+      if (/[",;\n]/.test(v)) {
+        return '"' + v.replace(/"/g, '""') + '"';
+      }
+      return v;
+    }
+
+    function exportRoomsExcel() {
+      const date = el.today.value || todayISO();
+      const rooms = state.rooms.slice().sort((a, b) => a.code.localeCompare(b.code));
+      const headers = ["Stanza","Cognome","Nome","Nazionalità","Azienda","Check-in","Check-out"];
+      const lines = [];
+
+      rooms.forEach(room => {
+        const occupants = state.stays
+          .filter(stay => stay.roomCode === room.code && activeStatus(stay) && overlaps(stay, date))
+          .sort((a, b) => {
+            const surnameCmp = String(a.surname || "").localeCompare(String(b.surname || ""));
+            if (surnameCmp !== 0) return surnameCmp;
+            return String(a.name || "").localeCompare(String(b.name || ""));
+          });
+
+        if (!occupants.length) {
+          return;
+        }
+
+        occupants.forEach(stay => {
+          lines.push({
+            "Stanza": room.code || "",
+            "Cognome": capitalizeWords(stay.surname) || "",
+            "Nome": capitalizeWords(stay.name) || "",
+            "Nazionalità": capitalizeWords(stay.nationality) || "",
+            "Azienda": upperText(stay.company) || "",
+            "Check-in": stay.checkIn || "",
+            "Check-out": stay.checkOut || ""
+          });
+        });
+      });
+
+      const csv = [
+        ["Data di riferimento", date].map(csvEscape).join(";"),
+        headers.map(csvEscape).join(";"),
+        ...lines.map(row => headers.map(h => csvEscape(row[h])).join(";"))
+      ].join("\n");
+
+      const blob = new Blob(["\ufeff" + csv], { type: "application/vnd.ms-excel;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "export-stanze-semplificato-" + date + ".csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function exportHistoryExcel() {
+      const rows = state.stays
+        .slice()
+        .sort((a, b) => {
+          const roomCmp = String(a.roomCode || "").localeCompare(String(b.roomCode || ""));
+          if (roomCmp !== 0) return roomCmp;
+          return String(a.checkIn || "").localeCompare(String(b.checkIn || ""));
+        })
+        .map(stay => ({
+          Stanza: stay.roomCode || "",
+          ID: upperText(stay.workerId),
+          Cognome: capitalizeWords(stay.surname),
+          Nome: capitalizeWords(stay.name),
+          Ruolo: capitalizeWords(stay.role),
+          Azienda: upperText(stay.company),
+          Nazionalità: capitalizeWords(stay.nationality),
+          Stato: String(stay.status || "").toLowerCase(),
+          "Check-in": stay.checkIn || "",
+          "Check-out": stay.checkOut || "",
+          Giorni: (stay.checkIn && stay.checkOut) ? daysDiff(stay.checkIn, stay.checkOut) : ""
+        }));
+
+      const headers = ["Stanza","ID","Cognome","Nome","Ruolo","Azienda","Nazionalità","Stato","Check-in","Check-out","Giorni"];
+      const csv = [
+        headers.join(";"),
+        ...rows.map(row => headers.map(h => csvEscape(row[h])).join(";"))
+      ].join("\n");
+
+      const blob = new Blob(["\ufeff" + csv], { type: "application/vnd.ms-excel;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const today = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = "storico-hotel-fletcher-" + today + ".csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function flashUndoNotice(message) {
+      if (!el.globalActionNotice) return;
+      el.globalActionNotice.className = "notice show warn";
+      el.globalActionNotice.innerHTML = message + ' <button class="btn secondary" id="undoDeleteBtn" type="button" style="margin-left:10px;padding:6px 10px">Annulla</button>';
+      const btn = document.getElementById("undoDeleteBtn");
+      if (btn) btn.onclick = undoLastDelete;
+    }
+
+    function undoLastDelete() {
+      if (!lastDeletedItem) return;
+      if (lastDeletedItem.type === "stay") {
+        state.stays.push(lastDeletedItem.payload);
+      } else if (lastDeletedItem.type === "room") {
+        state.rooms.push(lastDeletedItem.payload);
+        state.rooms.sort((a, b) => a.code.localeCompare(b.code));
+      }
+      lastDeletedItem = null;
+      saveState();
+      renderAll();
+      flashNotice(el.globalActionNotice, "ok", "Eliminazione annullata.");
+    }
+
+    function updateBulkDraftStatus(message) {
+      if (el.bulkDraftStatus) el.bulkDraftStatus.textContent = message;
+    }
+
+    function saveBulkDraft() {
+      try {
+        const payload = {
+          bulkCount: el.bulkCount ? String(el.bulkCount.value || "1") : "1",
+          bulkCompany: el.bulkCompany ? String(el.bulkCompany.value || "") : "",
+          bulkNationality: el.bulkNationality ? String(el.bulkNationality.value || "") : "",
+          bulkRole: el.bulkRole ? String(el.bulkRole.value || "") : "",
+          bulkCheckIn: el.bulkCheckIn ? String(el.bulkCheckIn.value || "") : "",
+          bulkCheckOut: el.bulkCheckOut ? String(el.bulkCheckOut.value || "") : "",
+          bulkRows,
+          currentBulkStatusIndex
+        };
+        localStorage.setItem(BULK_DRAFT_KEY, JSON.stringify(payload));
+        updateBulkDraftStatus("Bozza locale: salvata automaticamente");
+      } catch (err) {
+        console.error(err);
+        updateBulkDraftStatus("Bozza locale: errore salvataggio");
+      }
+    }
+
+    function clearBulkDraft() {
+      try {
+        localStorage.removeItem(BULK_DRAFT_KEY);
+      } catch (err) {
+        console.error(err);
+      }
+      updateBulkDraftStatus("Bozza locale: vuota");
+    }
+
+    function loadBulkDraft() {
+      try {
+        const raw = localStorage.getItem(BULK_DRAFT_KEY);
+        if (!raw) {
+          updateBulkDraftStatus("Bozza locale: non presente");
+          return false;
+        }
+        const data = JSON.parse(raw);
+        if (el.bulkCount) el.bulkCount.value = String(data.bulkCount || "1");
+        if (el.bulkCompany) el.bulkCompany.value = String(data.bulkCompany || "");
+        if (el.bulkNationality) el.bulkNationality.value = String(data.bulkNationality || "");
+        if (el.bulkRole) el.bulkRole.value = String(data.bulkRole || "");
+        if (el.bulkCheckIn) el.bulkCheckIn.value = String(data.bulkCheckIn || "");
+        if (el.bulkCheckOut) el.bulkCheckOut.value = String(data.bulkCheckOut || "");
+        bulkRows = Array.isArray(data.bulkRows) ? data.bulkRows : [];
+        currentBulkStatusIndex = Number(data.currentBulkStatusIndex || 0);
+        updateBulkDraftStatus("Bozza locale: ripristinata");
+        return true;
+      } catch (err) {
+        console.error(err);
+        updateBulkDraftStatus("Bozza locale: non leggibile");
+        return false;
+      }
+    }
+
+    function bulkTemplateFromCommon() {
+      return {
+        roomCode: "",
+        workerId: "",
+        surname: "",
+        name: "",
+        company: el.bulkCompany ? String(el.bulkCompany.value || "").trim().toUpperCase() : "",
+        nationality: el.bulkNationality ? String(el.bulkNationality.value || "").trim() : "",
+        role: el.bulkRole ? String(el.bulkRole.value || "").trim() : "",
+        status: "confirmed",
+        checkIn: el.bulkCheckIn ? el.bulkCheckIn.value : "",
+        checkOut: el.bulkCheckOut ? el.bulkCheckOut.value : ""
+      };
+    }
+
+    function ensureBulkRows() {
+      const count = Math.max(1, Math.min(30, Number(el.bulkCount?.value || 1)));
+      if (!bulkRows.length) {
+        bulkRows = Array.from({ length: count }, () => ({ ...bulkTemplateFromCommon() }));
+      } else if (bulkRows.length < count) {
+        while (bulkRows.length < count) bulkRows.push({ ...bulkTemplateFromCommon() });
+      } else if (bulkRows.length > count) {
+        bulkRows = bulkRows.slice(0, count);
+      }
+    }
+
+    function renderBulkRows() {
+      if (!el.bulkTableBody) return;
+      ensureBulkRows();
+      const roomOptions = '<option value="">Auto / manuale</option>' + state.rooms
+        .slice().sort((a,b) => a.code.localeCompare(b.code))
+        .map(r => `<option value="${esc(r.code)}">${esc(r.code)}</option>`).join("");
+
+      el.bulkTableBody.innerHTML = bulkRows.map((row, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td><select data-bulk-field="roomCode" data-bulk-index="${index}">${roomOptions}</select></td>
+          <td><input data-bulk-field="workerId" data-bulk-index="${index}" value="${esc(row.workerId)}" /></td>
+          <td><input data-bulk-field="surname" data-bulk-index="${index}" value="${esc(row.surname)}" /></td>
+          <td><input data-bulk-field="name" data-bulk-index="${index}" value="${esc(row.name)}" /></td>
+          <td><select data-bulk-field="company" data-bulk-index="${index}">
+            <option value="">Seleziona</option>
+            <option value="EOS">EOS</option><option value="MS">MS</option><option value="RMLI">RMLI</option><option value="KOTLO">KOTLO</option>
+          </select></td>
+          <td><select data-bulk-field="nationality" data-bulk-index="${index}">
+            <option value="">Seleziona</option><option value="European">European</option><option value="Non-European">Non-European</option>
+          </select></td>
+          <td><input data-bulk-field="role" data-bulk-index="${index}" value="${esc(row.role)}" list="roleSuggestions" /></td>
+          <td><input data-bulk-field="checkIn" data-bulk-index="${index}" type="date" value="${esc(row.checkIn)}" /></td>
+          <td><input data-bulk-field="checkOut" data-bulk-index="${index}" type="date" value="${esc(row.checkOut)}" /></td>
+        </tr>
+      `).join("");
+
+      bulkRows.forEach((row, index) => {
+        const setVal = (field, value) => {
+          const node = el.bulkTableBody.querySelector(`[data-bulk-field="${field}"][data-bulk-index="${index}"]`);
+          if (node) node.value = value || "";
+        };
+        setVal("roomCode", row.roomCode);
+        setVal("company", row.company);
+        setVal("nationality", row.nationality);
+      });
+
+      bindBulkInputs();
+      updateBulkSummary();
+      updateBulkAvailability(currentBulkStatusIndex);
+    }
+
+    function bindBulkInputs() {
+      if (!el.bulkTableBody) return;
+      el.bulkTableBody.querySelectorAll("[data-bulk-field]").forEach(node => {
+        const syncRow = function() {
+          const index = Number(this.dataset.bulkIndex);
+          const field = this.dataset.bulkField;
+          currentBulkStatusIndex = index;
+          if (!bulkRows[index]) return;
+          bulkRows[index][field] = field === "company" ? String(this.value || "").trim().toUpperCase() : String(this.value || "").trim();
+          updateBulkSummary();
+          saveBulkDraft();
+          if (field === "roomCode" || field === "checkIn" || field === "checkOut") updateBulkAvailability(index);
+        };
+        node.addEventListener("input", syncRow);
+        node.addEventListener("change", syncRow);
+        node.addEventListener("focus", function() {
+          currentBulkStatusIndex = Number(this.dataset.bulkIndex);
+          updateBulkAvailability(currentBulkStatusIndex);
+        });
+      });
+    }
+
+    function applyCommonValuesToEmptyBulkRows() {
+      const common = bulkTemplateFromCommon();
+      bulkRows = bulkRows.map(row => ({
+        ...row,
+        company: row.company || common.company,
+        nationality: row.nationality || common.nationality,
+        role: row.role || common.role,
+        checkIn: row.checkIn || common.checkIn,
+        checkOut: row.checkOut || common.checkOut
+      }));
+    }
+
+    function bulkRowsReady() {
+      return bulkRows.filter(r => r.surname || r.name || r.workerId);
+    }
+
+    function updateBulkSummary() {
+      if (!el.bulkSummary) return;
+      const ready = bulkRowsReady();
+      const assigned = ready.filter(r => r.roomCode).length;
+      el.bulkSummary.textContent = `${ready.length} righe compilate · ${assigned} con stanza assegnata · ${Math.max(ready.length - assigned, 0)} senza stanza.`;
+    }
+
+    function findAvailableRoomForPeriod(checkIn, checkOut, tempAssignments = []) {
+      const rooms = state.rooms.slice().sort((a,b) => a.code.localeCompare(b.code));
+      for (const room of rooms) {
+        const roomBaseUsage = roomUsageForPeriod(room.code, checkIn, checkOut, null);
+        const tempCount = tempAssignments.filter(x => x.roomCode === room.code && rangesOverlap(x.checkIn, x.checkOut, checkIn, checkOut)).length;
+        if (roomBaseUsage.booked + tempCount < roomBaseUsage.capacity) return room.code;
+      }
+      return "";
+    }
+
+    function autoAssignBulkRooms() {
+      clearNotice(el.bulkFormNotice);
+      ensureBulkRows();
+      applyCommonValuesToEmptyBulkRows();
+
+      const filledRows = bulkRows
+        .map((row, index) => ({ row, index }))
+        .filter(x => x.row.surname || x.row.name || x.row.workerId);
+
+      if (!filledRows.length) {
+        return showNotice(el.bulkFormNotice, "bad", "Compila almeno nome, cognome o worker ID nelle righe da assegnare.");
+      }
+
+      const tempAssignments = [];
+      let assigned = 0;
+
+      const groups = {};
+      filledRows.forEach(({ row, index }) => {
+        if (!row.checkIn || !row.checkOut || row.checkIn >= row.checkOut) return;
+        const key = [
+          String(row.checkIn || "").trim(),
+          String(row.checkOut || "").trim(),
+          String(row.company || "").trim().toUpperCase()
+        ].join("|");
+        if (!groups[key]) groups[key] = [];
+        groups[key].push({ row, index });
+      });
+
+      Object.values(groups).forEach(group => {
+        if (!group.length) return;
+
+        const checkIn = group[0].row.checkIn;
+        const checkOut = group[0].row.checkOut;
+        const groupSize = group.length;
+        let assignedRoom = "";
+
+        const rooms = state.rooms.slice().sort((a, b) => a.code.localeCompare(b.code));
+
+        // First look for a single room that can host the whole group
+        for (const room of rooms) {
+          const usage = roomUsageForPeriod(room.code, checkIn, checkOut, null);
+          const tempCount = tempAssignments.filter(x =>
+            x.roomCode === room.code && rangesOverlap(x.checkIn, x.checkOut, checkIn, checkOut)
+          ).length;
+          if (usage.booked + tempCount + groupSize <= usage.capacity) {
+            assignedRoom = room.code;
+            break;
+          }
+        }
+
+        if (assignedRoom) {
+          group.forEach(({ index }) => {
+            if (bulkRows[index].roomCode !== assignedRoom) assigned += 1;
+            bulkRows[index] = { ...bulkRows[index], roomCode: assignedRoom };
+          });
+          for (let i = 0; i < groupSize; i++) {
+            tempAssignments.push({ roomCode: assignedRoom, checkIn, checkOut });
+          }
+          return;
+        }
+
+        // Fallback: assign one by one only when no single room can host the full group
+        group.forEach(({ row, index }) => {
+          if (row.roomCode) {
+            tempAssignments.push({ roomCode: row.roomCode, checkIn: row.checkIn, checkOut: row.checkOut });
+            return;
+          }
+          const found = findAvailableRoomForPeriod(row.checkIn, row.checkOut, tempAssignments);
+          if (found) {
+            if (bulkRows[index].roomCode !== found) assigned += 1;
+            bulkRows[index] = { ...row, roomCode: found };
+            tempAssignments.push({ roomCode: found, checkIn: row.checkIn, checkOut: row.checkOut });
+          }
+        });
+      });
+
+      renderBulkRows();
+      updateBulkAvailability(currentBulkStatusIndex);
+      saveBulkDraft();
+      showNotice(
+        el.bulkFormNotice,
+        assigned ? "ok" : "warn",
+        assigned
+          ? `Camere assegnate automaticamente: ${assigned}. Le persone con stesso periodo e stessa azienda vengono tenute insieme quando una camera ha abbastanza posti per tutto il gruppo.`
+          : "Nessuna camera assegnata automaticamente."
+      );
+    }
+
+    function resetBulkRows() {
+      clearNotice(el.bulkFormNotice);
+      const count = Math.max(1, Math.min(30, Number(el.bulkCount?.value || 1)));
+      bulkRows = Array.from({ length: count }, () => ({ ...bulkTemplateFromCommon() }));
+      renderBulkRows();
+      updateBulkAvailability(0);
+      clearBulkDraft();
+      showNotice(el.bulkFormNotice, "ok", "Campi resettati.");
+    }
+
+    function saveBulkRows() {
+      clearNotice(el.bulkFormNotice);
+      ensureBulkRows();
+      applyCommonValuesToEmptyBulkRows();
+
+      const rowsToSave = bulkRows.map((row, index) => ({ row, index }))
+        .filter(x => x.row.surname || x.row.name || x.row.workerId);
+
+      if (!rowsToSave.length) return showNotice(el.bulkFormNotice, "bad", "Non ci sono righe compilate da salvare.");
+
+      const staged = [];
+      const errors = [];
+
+      // reset visual errors
+      document.querySelectorAll(".bulk-row-error").forEach(r => r.classList.remove("bulk-row-error"));
+      document.querySelectorAll(".bulk-cell-error").forEach(c => c.classList.remove("bulk-cell-error"));
+
+      rowsToSave.forEach(({row, index}) => {
+        const payload = {
+          id: uid(),
+          roomCode: String(row.roomCode || "").trim().toUpperCase(),
+          workerId: String(row.workerId || "").trim().toUpperCase(),
+          surname: String(row.surname || "").trim(),
+          name: String(row.name || "").trim(),
+          role: String(row.role || "").trim(),
+          company: String(row.company || "").trim().toUpperCase(),
+          nationality: String(row.nationality || "").trim(),
+          status: "confirmed",
+          checkIn: String(row.checkIn || "").trim(),
+          checkOut: String(row.checkOut || "").trim()
+        };
+
+        const tr = el.bulkTableBody.querySelectorAll("tr")[index];
+        const markField = (field) => {
+          const node = el.bulkTableBody.querySelector(`[data-bulk-field="${field}"][data-bulk-index="${index}"]`);
+          if (node) node.classList.add("bulk-cell-error");
+          if (tr) tr.classList.add("bulk-row-error");
+        };
+
+        if (!payload.surname) { errors.push(`Riga ${index+1}: manca il cognome.`); markField("surname"); return; }
+        if (!payload.name) { errors.push(`Riga ${index+1}: manca il nome.`); markField("name"); return; }
+        if (!payload.company) { errors.push(`Riga ${index+1}: manca l'azienda.`); markField("company"); return; }
+        if (!payload.roomCode) { errors.push(`Riga ${index+1}: manca la stanza.`); markField("roomCode"); return; }
+        if (!payload.checkIn) { errors.push(`Riga ${index+1}: manca il check-in.`); markField("checkIn"); return; }
+        if (!payload.checkOut) { errors.push(`Riga ${index+1}: manca il check-out.`); markField("checkOut"); return; }
+        if (!isIsoDate(payload.checkIn)) { errors.push(`Riga ${index+1}: check-in non valido.`); markField("checkIn"); return; }
+        if (!isIsoDate(payload.checkOut)) { errors.push(`Riga ${index+1}: check-out non valido.`); markField("checkOut"); return; }
+        if (payload.checkIn >= payload.checkOut) { errors.push(`Riga ${index+1}: il check-out deve essere successivo al check-in.`); markField("checkIn"); markField("checkOut"); return; }
+        if (!state.rooms.some(r => r.code === payload.roomCode)) { errors.push(`Riga ${index+1}: stanza non valida.`); markField("roomCode"); return; }
+        if (!["EOS", "MS", "RMLI", "KOTLO"].includes(payload.company)) { errors.push(`Riga ${index+1}: azienda non valida.`); markField("company"); return; }
+        if (payload.nationality && !["European", "Non-European"].includes(payload.nationality)) { errors.push(`Riga ${index+1}: nazionalità non valida.`); markField("nationality"); return; }
+
+        if (payload.workerId) {
+          const duplicateWorker = state.stays.some(s =>
+            activeStatus(s) &&
+            String(s.workerId || "").trim().toUpperCase() === payload.workerId &&
+            rangesOverlap(s.checkIn, s.checkOut, payload.checkIn, payload.checkOut)
+          );
+          if (duplicateWorker) { errors.push(`Riga ${index+1}: worker ID già presente nello stesso periodo.`); markField("workerId"); return; }
+        }
+
+        if (roomIsFullForPeriod(payload.roomCode, payload.checkIn, payload.checkOut, null)) {
+          errors.push(`Riga ${index+1}: camera piena nel periodo selezionato.`);
+          markField("roomCode");
+          markField("checkIn");
+          markField("checkOut");
+          return;
+        }
+
+        const stagedCount = staged.filter(s => s.roomCode === payload.roomCode && rangesOverlap(s.checkIn, s.checkOut, payload.checkIn, payload.checkOut)).length;
+        const usage = roomUsageForPeriod(payload.roomCode, payload.checkIn, payload.checkOut, null);
+        if (usage.booked + stagedCount >= usage.capacity) {
+          errors.push(`Riga ${index+1}: camera ${payload.roomCode} piena nel periodo selezionato.`);
+          markField("roomCode");
+          markField("checkIn");
+          markField("checkOut");
+          return;
+        }
+
+        staged.push(payload);
+      });
+
+      if (errors.length) {
+        showNotice(el.bulkFormNotice, "bad", errors.slice(0,5).join(" | "));
+        return;
+      }
+
+      state.stays.push(...staged);
+      bulkRows = Array.from({ length: Math.max(1, Math.min(30, Number(el.bulkCount?.value || 1))) }, () => ({ ...bulkTemplateFromCommon() }));
+      clearBulkDraft();
+      renderBulkRows();
+      updateBulkAvailability(0);
+      saveState();
+      renderAll();
+      showNotice(el.bulkFormNotice, "ok", `${staged.length} soggiorni salvati correttamente.`);
+    }
+
+    function updateBulkAvailability(index = currentBulkStatusIndex) {
+      if (!el.bulkAvailabilityBox) return;
+      currentBulkStatusIndex = Math.max(0, Number(index || 0));
+      const row = bulkRows[currentBulkStatusIndex];
+
+      if (!row) {
+        el.bulkAvailabilityBox.className = "help";
+        el.bulkAvailabilityBox.innerHTML = "Seleziona una riga e una stanza per vedere disponibilità e occupanti nel periodo.";
+        return;
+      }
+
+      const roomCode = String(row.roomCode || "").trim().toUpperCase();
+      const checkIn = String(row.checkIn || "").trim();
+      const checkOut = String(row.checkOut || "").trim();
+
+      if (!roomCode || !checkIn || !checkOut) {
+        el.bulkAvailabilityBox.className = "help";
+        el.bulkAvailabilityBox.innerHTML = `Riga ${currentBulkStatusIndex + 1}: seleziona stanza, check-in e check-out per vedere disponibilità e occupanti nel periodo.`;
+        return;
+      }
+
+      if (!isIsoDate(checkIn) || !isIsoDate(checkOut) || checkIn >= checkOut) {
+        el.bulkAvailabilityBox.className = "help";
+        el.bulkAvailabilityBox.innerHTML = `Riga ${currentBulkStatusIndex + 1}: periodo non valido. Il check-out deve essere successivo al check-in.`;
+        return;
+      }
+
+      const usage = roomUsageForPeriod(roomCode, checkIn, checkOut, null);
+      const conflicts = getBookingsForPeriod(roomCode, checkIn, checkOut, null)
+        .sort((a, b) => String(a.checkIn || "").localeCompare(String(b.checkIn || "")));
+
+      const tone = availabilityTone(usage);
+      const toneText = tone === "bad" ? "bad" : tone === "warn" ? "warn" : "ok";
+      const statusText = tone === "bad"
+        ? "Camera piena nel periodo selezionato"
+        : tone === "warn"
+          ? "Disponibilità limitata"
+          : "Camera disponibile";
+
+      const occupantsHtml = conflicts.length
+        ? '<div style="margin-top:8px"><strong>Occupazioni nel periodo:</strong><div class="small" style="margin-top:6px">' +
+          conflicts.map(s => {
+            const fullName = `${capitalizeWords(s.surname)} ${capitalizeWords(s.name)}`.trim() || "-";
+            return `${esc(fullName)} (${fmtDate(s.checkIn)} → ${fmtDate(s.checkOut)})`;
+          }).join("<br>") +
+          '</div></div>'
+        : '<div class="small" style="margin-top:8px">Nessun altro ospite presente nello stesso periodo.</div>';
+
+      el.bulkAvailabilityBox.className = "help";
+      el.bulkAvailabilityBox.innerHTML = `
+        <span class="badge ${toneText}">${statusText}</span>
+        <div style="margin-top:8px">
+          <strong>Riga ${currentBulkStatusIndex + 1} · Stanza ${esc(roomCode)}</strong> · capienza ${usage.capacity} · già prenotati nel periodo ${usage.booked} · posti ancora liberi ${usage.available}
+        </div>
+        <div class="small" style="margin-top:6px">Il check-out libera la stanza nello stesso giorno.</div>
+        ${occupantsHtml}
+      `;
+    }
+    function availabilityTone(usage) {
+      if (!usage.room) return "warn";
+      if (usage.booked >= usage.capacity) return "bad";
+      if (usage.available === 1) return "warn";
+      return "ok";
+    }
+
+    function updateStayAvailability() {
+      if (!el.stayAvailabilityBox) return;
+      const roomCode = el.stayRoom.value;
+      const checkIn = el.checkIn.value;
+      const checkOut = el.checkOut.value;
+
+      if (!roomCode || !checkIn || !checkOut) {
+        el.stayAvailabilityBox.className = "help";
+        el.stayAvailabilityBox.innerHTML = "Seleziona stanza e periodo per vedere disponibilità e conflitti.";
+        return;
+      }
+
+      if (!isIsoDate(checkIn) || !isIsoDate(checkOut)) {
+        el.stayAvailabilityBox.className = "help";
+        el.stayAvailabilityBox.innerHTML = "Inserisci date valide nel formato corretto.";
+        return;
+      }
+
+      if (checkIn >= checkOut) {
+        el.stayAvailabilityBox.className = "help";
+        el.stayAvailabilityBox.innerHTML = "<strong>Periodo non valido.</strong><br>Il check-out deve essere successivo al check-in.";
+        return;
+      }
+
+      const usage = roomUsageForPeriod(roomCode, checkIn, checkOut, null);
+      const conflicts = getBookingsForPeriod(roomCode, checkIn, checkOut, null)
+        .sort((a, b) => String(a.checkIn || "").localeCompare(String(b.checkIn || "")));
+
+      const tone = availabilityTone(usage);
+      const toneText = tone === "bad" ? "bad" : tone === "warn" ? "warn" : "ok";
+      const statusText = tone === "bad"
+        ? "Camera piena nel periodo selezionato"
+        : tone === "warn"
+          ? "Disponibilità limitata"
+          : "Camera disponibile";
+
+      const occupantsHtml = conflicts.length
+        ? '<div style="margin-top:8px"><strong>Occupazioni nel periodo:</strong><div class="small" style="margin-top:6px">' +
+          conflicts.map(s => {
+            const fullName = `${capitalizeWords(s.surname)} ${capitalizeWords(s.name)}`.trim() || "-";
+            return `${esc(fullName)} (${fmtDate(s.checkIn)} → ${fmtDate(s.checkOut)})`;
+          }).join("<br>") +
+          '</div></div>'
+        : '<div class="small" style="margin-top:8px">Nessun altro ospite presente nello stesso periodo.</div>';
+
+      el.stayAvailabilityBox.className = "help";
+      el.stayAvailabilityBox.innerHTML = `
+        <span class="badge ${toneText}">${statusText}</span>
+        <div style="margin-top:8px">
+          <strong>Stanza ${esc(roomCode)}</strong> · capienza ${usage.capacity} · già prenotati nel periodo ${usage.booked} · posti ancora liberi ${usage.available}
+        </div>
+        <div class="small" style="margin-top:6px">
+          Il check-out libera la stanza nello stesso giorno.
+        </div>
+        ${occupantsHtml}
+      `;
+    }
+
+    const VALID_COMPANIES = ["EOS", "MS", "RMLI", "KOTLO"];
+    const VALID_NATIONALITIES = ["European", "Non-European"];
+    const VALID_STATUSES = ["confirmed", "unknown", "cancelled"];
+
+    function validateStayPayload(payload, excludeStayId = null) {
+      if (!payload.roomCode || !payload.surname || !payload.name || !payload.company || !payload.checkIn || !payload.checkOut) {
+        return "Compila tutti i campi obbligatori: stanza, cognome, nome, azienda, check-in e check-out.";
+      }
+      if (!state.rooms.some(r => r.code === payload.roomCode)) {
+        return "Seleziona una stanza valida.";
+      }
+      if (!VALID_COMPANIES.includes(payload.company)) {
+        return "Azienda non valida.";
+      }
+      if (payload.nationality && !VALID_NATIONALITIES.includes(payload.nationality)) {
+        return "Nazionalità non valida.";
+      }
+      if (payload.status && !VALID_STATUSES.includes(payload.status)) {
+        return "Stato booking non valido.";
+      }
+      if (!isIsoDate(payload.checkIn) || !isIsoDate(payload.checkOut)) {
+        return "Inserisci date valide.";
+      }
+      if (payload.checkIn >= payload.checkOut) {
+        return "Il check-out deve essere successivo al check-in.";
+      }
+      if (payload.status !== "cancelled" && roomIsFullForPeriod(payload.roomCode, payload.checkIn, payload.checkOut, excludeStayId)) {
+        return "Prenotazione non consentita: la camera è già al completo nel periodo selezionato. Nota: il check-out libera la stanza nello stesso giorno.";
+      }
+
+      const workerId = String(payload.workerId || "").trim().toUpperCase();
+      const duplicateWorker = workerId && state.stays.some(s =>
+        s.id !== excludeStayId &&
+        activeStatus(s) &&
+        String(s.workerId || "").trim().toUpperCase() === workerId &&
+        rangesOverlap(s.checkIn, s.checkOut, payload.checkIn, payload.checkOut)
+      );
+      if (duplicateWorker) {
+        return "Attenzione: esiste già un soggiorno attivo nello stesso periodo con questo worker ID.";
+      }
+
+      return "";
+    }
+
+    function validateNewStay(payload) {
+      return validateStayPayload(payload, null);
+    }
+
+
+    function buildHotelExportRows(referenceDate) {
+      const rooms = state.rooms
+        .slice()
+        .sort((a, b) => String(a.code || "").localeCompare(String(b.code || "")));
+
+      return rooms.map(room => {
+        const occupants = state.stays
+          .filter(stay =>
+            activeStatus(stay) &&
+            stay.roomCode === room.code &&
+            stay.checkIn &&
+            stay.checkOut &&
+            stay.checkOut > referenceDate
+          )
+          .sort((a, b) => {
+            const aCurrent = overlaps(a, referenceDate) ? 0 : 1;
+            const bCurrent = overlaps(b, referenceDate) ? 0 : 1;
+            if (aCurrent !== bCurrent) return aCurrent - bCurrent;
+
+            const byIn = String(a.checkIn || "").localeCompare(String(b.checkIn || ""));
+            if (byIn !== 0) return byIn;
+            return `${a.surname || ""} ${a.name || ""}`.localeCompare(`${b.surname || ""} ${b.name || ""}`);
+          });
+        return { room, occupants };
+      }).filter(x => x.occupants.length > 0);
+    }
+
+    function buildHotelExcelHtml(referenceDate) {
+      const sections = buildHotelExportRows(referenceDate);
+      const exportedAt = new Date().toLocaleString("it-IT");
+
+      const roomBlocks = sections.map(({ room, occupants }) => {
+        const occupantRows = occupants.map(stay => {
+          const statusLabel = overlaps(stay, referenceDate) ? "Current" : "Future";
+          const statusBg = overlaps(stay, referenceDate) ? "#dcfce7" : "#fef3c7";
+
+          return `
+          <tr>
+            <td style="background:${statusBg};border:1px solid #b9c8db;font-weight:bold;">${esc(statusLabel)}</td>
+            <td style="border:1px solid #b9c8db;">${esc(capitalizeWords(`${stay.surname || ""} ${stay.name || ""}`.trim()))}</td>
+            <td style="border:1px solid #b9c8db;">${esc(upperText(stay.company) || "-")}</td>
+            <td style="border:1px solid #b9c8db;">${esc(upperText(stay.workerId) || "-")}</td>
+            <td style="border:1px solid #b9c8db;">${esc(capitalizeWords(stay.role) || "-")}</td>
+            <td style="border:1px solid #b9c8db;">${esc(fmtDate(stay.checkIn))}</td>
+            <td style="border:1px solid #b9c8db;">${esc(fmtDate(stay.checkOut))}</td>
+          </tr>
+        `;
+        }).join("");
+
+        return `
+          <tr><td colspan="7" style="height:10px;"></td></tr>
+          <tr>
+            <td colspan="7" style="background:#0b2e5c;color:#ffffff;font-weight:bold;font-size:14pt;padding:8px 10px;">
+              ROOM ${esc(room.code)} · Capacity ${esc(room.capacity)}
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#dbe7f5;font-weight:bold;padding:6px 8px;border:1px solid #b9c8db;">Status</td>
+            <td style="background:#dbe7f5;font-weight:bold;padding:6px 8px;border:1px solid #b9c8db;">Guest</td>
+            <td style="background:#dbe7f5;font-weight:bold;padding:6px 8px;border:1px solid #b9c8db;">Company</td>
+            <td style="background:#dbe7f5;font-weight:bold;padding:6px 8px;border:1px solid #b9c8db;">Worker ID</td>
+            <td style="background:#dbe7f5;font-weight:bold;padding:6px 8px;border:1px solid #b9c8db;">Role</td>
+            <td style="background:#dbe7f5;font-weight:bold;padding:6px 8px;border:1px solid #b9c8db;">Check-in</td>
+            <td style="background:#dbe7f5;font-weight:bold;padding:6px 8px;border:1px solid #b9c8db;">Check-out</td>
+          </tr>
+          ${occupantRows}
+        `;
+      }).join("");
+
+      return `
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:x="urn:schemas-microsoft-com:office:excel"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Type" content="application/vnd.ms-excel; charset=UTF-8" />
+<!--[if gte mso 9]><xml>
+<x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Rooming List</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook>
+</xml><![endif]-->
+</head>
+<body>
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:Calibri,Arial,sans-serif;font-size:11pt;min-width:1020px;">
+  <tr>
+    <td colspan="7" style="font-size:18pt;font-weight:bold;color:#0b2e5c;padding:10px 8px 2px 8px;">
+      UPDATED ROOMING LIST
+    </td>
+  </tr>
+  <tr>
+    <td colspan="7" style="padding:2px 8px 10px 8px;color:#475569;">
+      Reference date: <strong>${esc(fmtDate(referenceDate))}</strong> · Exported: <strong>${esc(exportedAt)}</strong> · Includes future bookings
+    </td>
+  </tr>
+  ${roomBlocks}
+</table>
+</body>
+</html>`;
+    }
+
+    function exportExcelHotel() {
+      const referenceDate = el.today && el.today.value ? el.today.value : todayISO();
+      const sections = buildHotelExportRows(referenceDate);
+      if (!sections.length) {
+        flashNotice(el.globalActionNotice, "warn", "No rooms occupied or booked from the selected date.");
+        return;
+      }
+
+      const htmlContent = buildHotelExcelHtml(referenceDate);
+      const blob = new Blob(["\ufeff", htmlContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `rooming-list-hotel-${referenceDate}.xls`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      flashNotice(el.globalActionNotice, "ok", "Hotel Excel exported successfully, including future bookings.");
+    }
+
+    function exportStateJson() {
+      const payload = { exportedAt: new Date().toISOString(), rooms: state.rooms, stays: state.stays };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "hotel-fletcher-backup-" + todayISO() + ".json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function importStateJsonFile(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function() {
+        try {
+          const parsed = JSON.parse(String(reader.result || "{}"));
+          const rooms = Array.isArray(parsed.rooms) ? parsed.rooms : null;
+          const stays = Array.isArray(parsed.stays) ? parsed.stays : null;
+          if (!rooms || !stays) throw new Error("Formato JSON non valido");
+          if (rooms.some(r => !r || !r.code || !r.typeLabel || !(Number(r.capacity) > 0))) throw new Error("Il file contiene camere non valide.");
+          const roomCodes = new Set(rooms.map(r => String(r.code || "").trim().toUpperCase()));
+          if (stays.some(s => !s || !s.id || !s.roomCode || !roomCodes.has(String(s.roomCode || "").trim().toUpperCase()))) throw new Error("Il file contiene soggiorni non validi.");
+          state = { rooms, stays };
+          editingStayId = null;
+          saveState();
+          renderAll();
+          flashNotice(el.globalActionNotice, "ok", "Backup importato correttamente.");
+        } catch (err) {
+          flashNotice(el.globalActionNotice, "bad", err && err.message ? `Import non riuscito: ${err.message}` : "Import non riuscito: file JSON non valido.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function renderAll() { renderRoomOptions(); renderRooms(); renderStays(); renderHistory(); renderKpi(); updateStayAvailability(); }
+
+    window.deleteStay = function(id) {
+      const stay = state.stays.find(s => s.id === id);
+      if (!stay) return;
+      const fullName = `${capitalizeWords(stay.surname)} ${capitalizeWords(stay.name)}`.trim() || "questo soggiorno";
+      const ok = confirm(`Confermi l'eliminazione di ${fullName} in stanza ${stay.roomCode || "-"}?`);
+      if (!ok) return;
+      lastDeletedItem = { type: "stay", payload: JSON.parse(JSON.stringify(stay)) };
+      state.stays = state.stays.filter(s => s.id !== id);
+      saveState();
+      renderAll();
+      flashUndoNotice(`${fullName} eliminato.`);
+    };
+
+    window.editStayDates = function(id) {
+      editingStayId = id;
+      renderStays();
+    };
+
+    window.cancelInlineEdit = function() {
+      editingStayId = null;
+      renderStays();
+    };
+
+    window.saveInlineStay = function(id) {
+      const stay = state.stays.find(s => s.id === id);
+      if (!stay) return;
+
+      const payload = {
+        roomCode: String(document.getElementById(`edit-roomCode-${id}`)?.value || "").trim().toUpperCase(),
+        workerId: String(document.getElementById(`edit-workerId-${id}`)?.value || "").trim().toUpperCase(),
+        surname: String(document.getElementById(`edit-surname-${id}`)?.value || "").trim(),
+        name: String(document.getElementById(`edit-name-${id}`)?.value || "").trim(),
+        role: String(document.getElementById(`edit-role-${id}`)?.value || "").trim(),
+        company: String(document.getElementById(`edit-company-${id}`)?.value || "").trim().toUpperCase(),
+        nationality: String(document.getElementById(`edit-nationality-${id}`)?.value || "").trim(),
+        status: String(document.getElementById(`edit-status-${id}`)?.value || "").trim().toLowerCase(),
+        checkIn: String(document.getElementById(`edit-checkIn-${id}`)?.value || "").trim(),
+        checkOut: String(document.getElementById(`edit-checkOut-${id}`)?.value || "").trim()
+      };
+
+      const validationError = validateStayPayload(payload, stay.id);
+      if (validationError) {
+        flashNotice(el.globalActionNotice, "bad", validationError);
+        return;
+      }
+
+      stay.roomCode = payload.roomCode;
+      stay.workerId = payload.workerId;
+      stay.surname = payload.surname;
+      stay.name = payload.name;
+      stay.role = payload.role;
+      stay.company = payload.company;
+      stay.nationality = payload.nationality;
+      stay.status = payload.status;
+      stay.checkIn = payload.checkIn;
+      stay.checkOut = payload.checkOut;
+
+      editingStayId = null;
+      saveState();
+      renderAll();
+      flashNotice(el.globalActionNotice, "ok", "Soggiorno aggiornato correttamente.");
+    };
+    window.deleteRoom = function(code) {
+      const room = state.rooms.find(r => r.code === code);
+      if (!room) return;
+      if (state.stays.some(s => s.roomCode === code)) { alert("Non puoi eliminare una stanza che ha già uno storico soggiorni."); return; }
+      const ok = confirm(`Confermi l'eliminazione della stanza ${code}?`);
+      if (!ok) return;
+      lastDeletedItem = { type: "room", payload: JSON.parse(JSON.stringify(room)) };
+      state.rooms = state.rooms.filter(r => r.code !== code);
+      saveState();
+      renderAll();
+      flashUndoNotice(`Stanza ${code} eliminata.`);
+    };
+
+    el.addRoomBtn.addEventListener("click", () => {
+      clearNotice(el.roomFormNotice);
+      const code = el.roomCode.value.trim().toUpperCase();
+      const typeLabel = el.roomType.value.trim();
+      const capacity = Number(el.roomCapacity.value);
+      if (!code) return showNotice(el.roomFormNotice, "bad", "Inserisci il numero stanza.");
+      if (!typeLabel) return showNotice(el.roomFormNotice, "bad", "Inserisci il tipo camera.");
+      if (!capacity || capacity < 1) return showNotice(el.roomFormNotice, "bad", "Inserisci una capienza valida.");
+      if (state.rooms.some(r => r.code === code)) return showNotice(el.roomFormNotice, "bad", "Questa stanza esiste già.");
+      state.rooms.push({ code, typeLabel, capacity });
+      state.rooms.sort((a, b) => a.code.localeCompare(b.code));
+      el.roomCode.value = "";
+      saveState();
+      renderAll();
+      showNotice(el.roomFormNotice, "ok", "Camera salvata correttamente.");
+    });
+
+    el.addStayBtn.addEventListener("click", () => {
+      clearNotice(el.stayFormNotice);
+      const payload = {
+        id: uid(), roomCode: el.stayRoom.value, workerId: el.workerId.value.trim().toUpperCase(), surname: el.surname.value.trim(), name: el.name.value.trim(),
+        role: el.role.value.trim(), company: el.company.value.trim().toUpperCase(), nationality: el.nationality.value.trim(), status: el.status.value,
+        checkIn: el.checkIn.value, checkOut: el.checkOut.value
+      };
+      const validationError = validateNewStay(payload);
+      if (validationError) return showNotice(el.stayFormNotice, "bad", validationError);
+      state.stays.push(payload);
+      [el.stayRoom, el.workerId, el.surname, el.name, el.role].forEach(i => i.value = "");
+      el.checkIn.value = "";
+      el.checkOut.value = "";
+      el.nationality.value = "";
+      el.company.value = "";
+      el.status.value = "confirmed";
+      setDefaultStayDates();
+      saveState();
+      renderAll();
+      showNotice(el.stayFormNotice, "ok", "Soggiorno registrato correttamente.");
+    });
+
+    el.searchStay.addEventListener("input", renderStays);
+    document.querySelectorAll("#stayQuickFilters .quick-filter-btn").forEach(btn => {
+      btn.addEventListener("click", function() {
+        stayQuickFilter = this.dataset.filter || "all";
+        renderStays();
+      });
+    });
+    document.querySelectorAll("#stays thead th.sortable").forEach(th => {
+      th.addEventListener("click", function() {
+        const key = this.dataset.sort;
+        if (staySort.key === key) staySort.dir = staySort.dir === "asc" ? "desc" : "asc";
+        else { staySort.key = key; staySort.dir = "asc"; }
+        renderStays();
+      });
+    });
+
+    [el.bulkCount, el.bulkCompany, el.bulkNationality, el.bulkRole, el.bulkCheckIn, el.bulkCheckOut].filter(Boolean).forEach(node => {
+      node.addEventListener("input", function() {
+        saveBulkDraft();
+      });
+      node.addEventListener("change", function() {
+        saveBulkDraft();
+      });
+    });
+
+    if (el.exportJsonBtn) el.exportJsonBtn.addEventListener("click", exportStateJson);
+    if (el.exportExcelHotelBtn) el.exportExcelHotelBtn.addEventListener("click", exportExcelHotel);
+    if (el.reloadCloudBtn) el.reloadCloudBtn.addEventListener("click", function() { loadCloudState(true); });
+    if (el.syncNowBtn) el.syncNowBtn.addEventListener("click", function() { saveCloudState(false); });
+    if (el.bulkGenerateBtn) el.bulkGenerateBtn.addEventListener("click", function() {
+      clearNotice(el.bulkFormNotice);
+      bulkRows = Array.from({ length: Math.max(1, Math.min(30, Number(el.bulkCount?.value || 1))) }, () => ({ ...bulkTemplateFromCommon() }));
+      renderBulkRows();
+      updateBulkAvailability(0);
+      saveBulkDraft();
+      showNotice(el.bulkFormNotice, "ok", "Righe generate.");
+    });
+    if (el.bulkAssignRoomsBtn) el.bulkAssignRoomsBtn.addEventListener("click", autoAssignBulkRooms);
+    if (el.bulkSaveBtn) el.bulkSaveBtn.addEventListener("click", saveBulkRows);
+    if (el.bulkResetBtn) el.bulkResetBtn.addEventListener("click", resetBulkRows);
+    if (el.importJsonBtn) el.importJsonBtn.addEventListener("click", () => el.importJsonFile.click());
+    if (el.importJsonFile) el.importJsonFile.addEventListener("change", function() {
+      importStateJsonFile(this.files && this.files[0]);
+      this.value = "";
+    });
+    el.filterRoom.addEventListener("change", renderStays);
+    [el.stayRoom, el.checkIn, el.checkOut].forEach(node => node.addEventListener("input", updateStayAvailability));
+    [el.stayRoom, el.checkIn, el.checkOut].forEach(node => node.addEventListener("change", updateStayAvailability));
+    el.today.addEventListener("change", () => {
+      renderRooms();
+      renderKpi();
+      renderHistory();
+      if (el.roomOccupantsModal.classList.contains("open")) {
+        const currentTitle = el.roomOccupantsTitle.textContent || "";
+        const match = currentTitle.match(/Stanza\s+(\S+)/i);
+        if (match) renderRoomOccupants(match[1]);
+      }
+    });
+    el.exportHistoryBtn.addEventListener("click", exportHistoryExcel);
+    el.exportRoomsBtn.addEventListener("click", exportRoomsExcel);
+    el.swapSearchA.addEventListener("input", refreshSwapModal);
+    el.swapSearchB.addEventListener("input", refreshSwapModal);
+    el.swapStayA.addEventListener("change", updateSwapRoomPreview);
+    el.swapStayB.addEventListener("change", updateSwapRoomPreview);
+    el.confirmSwapRoomBtn.addEventListener("click", confirmSwapRoom);
+    el.applyHistoryFilterBtn.addEventListener("click", renderHistory);
+    el.resetHistoryFilterBtn.addEventListener("click", function() {
+      el.historyFrom.value = "";
+      el.historyTo.value = "";
+      renderHistory();
+    });
+
+    setDefaultStayDates();
+    loadBulkDraft();
+    renderBulkRows();
+    renderAll();
+    loadCloudState(false);
+  </script>
+</body>
+</html>
