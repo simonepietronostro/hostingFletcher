@@ -408,67 +408,42 @@ td.right, th.right { white-space: nowrap !important; }
       return `${y}-${m}-${d}`;
     }
 
-    function normalizeDateValue(value) {
+    function normalizeDateOnly(value) {
       if (value === null || value === undefined || value === "") return "";
       const raw = String(value).trim();
       if (!raw) return "";
       if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
 
-      const parsed = new Date(raw);
-      if (!Number.isNaN(parsed.getTime())) {
-        return formatLocalIsoDate(parsed);
+      const withTime = raw.match(/^(\d{4}-\d{2}-\d{2})T/);
+      if (withTime) {
+        const parsed = new Date(raw);
+        if (!Number.isNaN(parsed.getTime())) return formatLocalIsoDate(parsed);
+        return withTime[1];
       }
 
-      const match = raw.match(/^(\d{4}-\d{2}-\d{2})/);
-      if (match) return match[1];
+      const parsed = new Date(raw);
+      if (!Number.isNaN(parsed.getTime())) return formatLocalIsoDate(parsed);
+
       return raw;
     }
 
-    function normalizeRoom(room) {
+    function normalizeStayDates(stay) {
       return {
-        ...room,
-        code: String(room.code || "").trim().toUpperCase(),
-        typeLabel: String(room.typeLabel || "").trim(),
-        capacity: Number(room.capacity || 0)
+        ...stay,
+        checkIn: normalizeDateOnly(stay.checkIn),
+        checkOut: normalizeDateOnly(stay.checkOut)
       };
     }
 
-    function normalizeBooking(booking) {
+    function normalizeStateDates(inputState) {
       return {
-        ...booking,
-        id: String(booking.id || "").trim(),
-        roomCode: String(booking.roomCode || "").trim().toUpperCase(),
-        workerId: String(booking.workerId || "").trim().toUpperCase(),
-        surname: String(booking.surname || "").trim(),
-        name: String(booking.name || "").trim(),
-        role: String(booking.role || "").trim(),
-        company: String(booking.company || "").trim().toUpperCase(),
-        nationality: String(booking.nationality || "").trim(),
-        status: String(booking.status || "").trim(),
-        checkIn: normalizeDateValue(booking.checkIn),
-        checkOut: normalizeDateValue(booking.checkOut),
-        createdAt: booking.createdAt || "",
-        updatedAt: booking.updatedAt || "",
-        updatedBy: booking.updatedBy || ""
+        rooms: Array.isArray(inputState.rooms) ? inputState.rooms : [],
+        stays: Array.isArray(inputState.stays) ? inputState.stays.map(normalizeStayDates) : []
       };
-    }
-
-    function normalizeStateData(data) {
-      return {
-        rooms: Array.isArray(data.rooms) ? data.rooms.map(normalizeRoom) : deepClone(IMPORTED_ROOMS),
-        stays: Array.isArray(data.stays) ? data.stays.map(normalizeBooking) : deepClone(IMPORTED_STAYS)
-      };
-    }
-
-    function hasLegacyDateFormat(bookings) {
-      return bookings.some(b =>
-        (b.checkIn && !/^\d{4}-\d{2}-\d{2}$/.test(String(b.checkIn).trim())) ||
-        (b.checkOut && !/^\d{4}-\d{2}-\d{2}$/.test(String(b.checkOut).trim()))
-      );
     }
 
     function getDefaultState() {
-      return normalizeStateData({ rooms: deepClone(IMPORTED_ROOMS), stays: deepClone(IMPORTED_STAYS) });
+      return normalizeStateDates({ rooms: deepClone(IMPORTED_ROOMS), stays: deepClone(IMPORTED_STAYS) });
     }
 
     function load() {
@@ -476,7 +451,7 @@ td.right, th.right { white-space: nowrap !important; }
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return getDefaultState();
         const data = JSON.parse(raw);
-        return normalizeStateData({
+        return normalizeStateDates({
           rooms: Array.isArray(data.rooms) ? data.rooms : deepClone(IMPORTED_ROOMS),
           stays: Array.isArray(data.stays) ? data.stays : deepClone(IMPORTED_STAYS)
         });
@@ -486,7 +461,7 @@ td.right, th.right { white-space: nowrap !important; }
     }
 
     function persistLocalState() {
-      state = normalizeStateData(state);
+      state = normalizeStateDates(state);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
 
@@ -507,9 +482,9 @@ td.right, th.right { white-space: nowrap !important; }
 
         const remoteRooms = Array.isArray(data.rooms) ? data.rooms : [];
         const remoteBookings = Array.isArray(data.bookings) ? data.bookings : [];
-        const legacyDatesFound = hasLegacyDateFormat(remoteBookings);
 
         if (!remoteRooms.length && !remoteBookings.length) {
+          // First initialization of the sheet: push current local state
           await saveCloudState(true);
           cloudInitialized = true;
           setSyncStatus("Cloud: initialized from local data");
@@ -518,7 +493,7 @@ td.right, th.right { white-space: nowrap !important; }
           return;
         }
 
-        state = normalizeStateData({
+        state = normalizeStateDates({
           rooms: remoteRooms,
           stays: remoteBookings
         });
@@ -526,15 +501,8 @@ td.right, th.right { white-space: nowrap !important; }
         cloudInitialized = true;
         cloudLastLoadedAt = new Date().toISOString();
         renderAll();
-
-        if (legacyDatesFound) {
-          await saveCloudState(false);
-          setSyncStatus("Cloud: loaded and normalized");
-          if (showNotice) flashNotice(el.globalActionNotice, "ok", "Cloud data reloaded and date format normalized.");
-        } else {
-          setSyncStatus("Cloud: loaded successfully");
-          if (showNotice) flashNotice(el.globalActionNotice, "ok", "Cloud data reloaded successfully.");
-        }
+        setSyncStatus("Cloud: loaded successfully");
+        if (showNotice) flashNotice(el.globalActionNotice, "ok", "Cloud data reloaded successfully.");
       } catch (err) {
         console.error(err);
         setSyncStatus("Cloud: load error");
@@ -548,8 +516,7 @@ td.right, th.right { white-space: nowrap !important; }
       try {
         cloudSyncInProgress = true;
         setSyncStatus(isInit ? "Cloud: initializing..." : "Cloud: saving...");
-        state = normalizeStateData(state);
-        persistLocalState();
+        state = normalizeStateDates(state);
         const payload = {
           rooms: state.rooms,
           bookings: state.stays
