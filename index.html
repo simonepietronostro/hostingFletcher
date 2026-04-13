@@ -2053,6 +2053,7 @@ td.right, th.right { white-space: nowrap !important; }
 
         const stylesFile = files.find(file => file && file.name === "xl/styles.xml");
         const sheetFile = files.find(file => file && file.name === "xl/worksheets/sheet1.xml");
+        const dailySheetFile = files.find(file => file && file.name === "xl/worksheets/sheet2.xml");
         const workbookFile = files.find(file => file && file.name === "xl/workbook.xml");
 
         if (!stylesFile || !stylesFile.content) {
@@ -2063,6 +2064,10 @@ td.right, th.right { white-space: nowrap !important; }
           errors.push("Manca il foglio sheet1.xml.");
           return errors;
         }
+        if (!dailySheetFile || !dailySheetFile.content) {
+          errors.push("Manca il foglio sheet2.xml con le presenze giornaliere.");
+          return errors;
+        }
         if (!workbookFile || !workbookFile.content) {
           errors.push("Manca il file workbook.xml.");
           return errors;
@@ -2070,6 +2075,7 @@ td.right, th.right { white-space: nowrap !important; }
 
         const stylesXml = String(stylesFile.content);
         const sheetXml = String(sheetFile.content);
+        const dailySheetXml = String(dailySheetFile.content);
         const workbookXml = String(workbookFile.content);
 
         const declaredXfCount = Number((stylesXml.match(/<cellXfs\s+count="(\d+)"/) || [])[1] || 0);
@@ -2111,8 +2117,22 @@ td.right, th.right { white-space: nowrap !important; }
         if (!/<sheetData>/.test(sheetXml) || !/<\/worksheet>/.test(sheetXml)) {
           errors.push("Il foglio XLSX non è strutturalmente valido.");
         }
+        if (!/<sheetData>/.test(dailySheetXml) || !/<\/worksheet>/.test(dailySheetXml)) {
+          errors.push("Il foglio XLSX delle presenze giornaliere non è strutturalmente valido.");
+        }
+        const dailyHeaderRowMatch = dailySheetXml.match(/<row r="6"[^>]*>([\s\S]*?)<\/row>/);
+        const dailyHeaderValues = dailyHeaderRowMatch
+          ? Array.from(dailyHeaderRowMatch[1].matchAll(/<c\b[^>]*t="inlineStr"[^>]*><is><t>([\s\S]*?)<\/t><\/is><\/c>/g))
+              .map(match => match[1].replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'"))
+          : [];
+        if (dailyHeaderValues.join("|") !== ["Date", "Day", "Guests present", "Arrivals", "Departures"].join("|")) {
+          errors.push("Header del foglio Daily Presence non coerente.");
+        }
         if (!/<sheet\s+name="Rooming List"/.test(workbookXml)) {
           errors.push('Il workbook XLSX non contiene il foglio "Rooming List".');
+        }
+        if (!/<sheet\s+name="Daily Presence"/.test(workbookXml)) {
+          errors.push('Il workbook XLSX non contiene il foglio "Daily Presence".');
         }
 
         return errors;
@@ -2136,6 +2156,68 @@ td.right, th.right { white-space: nowrap !important; }
       const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
       if (!match) return raw || "";
       return `${match[3]}-${match[2]}-${match[1]}`;
+    }
+
+    function buildHotelDailyPresenceRows(referenceDate) {
+      const startDate = String(referenceDate || "").trim();
+      if (!isIsoDate(startDate)) return { rows: [], summary: null };
+
+      const relevantStays = state.stays.filter(stay =>
+        activeStatus(stay) &&
+        stay.checkIn && stay.checkOut &&
+        isIsoDate(stay.checkIn) && isIsoDate(stay.checkOut) &&
+        stay.checkOut > startDate
+      );
+
+      if (!relevantStays.length) {
+        return {
+          rows: [],
+          summary: {
+            referenceDate: formatDisplayDate(startDate),
+            peakGuests: 0,
+            peakDay: "-",
+            averageGuests: 0
+          }
+        };
+      }
+
+      let lastDate = startDate;
+      relevantStays.forEach(stay => {
+        if (stay.checkOut > lastDate) lastDate = stay.checkOut;
+      });
+
+      const rows = [];
+      const cursor = new Date(startDate + "T00:00:00");
+      const end = new Date(lastDate + "T00:00:00");
+
+      while (cursor < end) {
+        const day = formatLocalIsoDate(cursor);
+        const guestsPresent = relevantStays.filter(stay => stay.checkIn <= day && stay.checkOut > day).length;
+        const arrivals = relevantStays.filter(stay => stay.checkIn === day).length;
+        const departures = relevantStays.filter(stay => stay.checkOut === day).length;
+        rows.push({
+          isoDate: day,
+          date: formatDisplayDate(day),
+          dayLabel: cursor.toLocaleDateString("en-GB", { weekday: "short" }),
+          guestsPresent,
+          arrivals,
+          departures
+        });
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      const peak = rows.reduce((best, row) => row.guestsPresent > best.guestsPresent ? row : best, rows[0]);
+      const totalGuests = rows.reduce((sum, row) => sum + row.guestsPresent, 0);
+
+      return {
+        rows,
+        summary: {
+          referenceDate: formatDisplayDate(startDate),
+          peakGuests: peak ? peak.guestsPresent : 0,
+          peakDay: peak ? `${peak.date} (${peak.dayLabel})` : "-",
+          averageGuests: rows.length ? (totalGuests / rows.length).toFixed(1) : "0.0"
+        }
+      };
     }
 
     function buildHotelExportRows(referenceDate) {
@@ -2294,8 +2376,52 @@ td.right, th.right { white-space: nowrap !important; }
     }
 
 
-    function buildHotelWorkbookFiles(rows) {
+    function buildHotelDailySheetXml(rows, summary = null) {
+      const headers = ["Date", "Day", "Guests present", "Arrivals", "Departures"];
+      const widths = [14, 12, 18, 12, 12];
+      const colsXml = widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("");
+
+      const summaryRows = summary ? [
+        `<row r="1"><c r="A1" t="inlineStr" s="28"><is><t>Reference date</t></is></c><c r="B1" t="inlineStr" s="29"><is><t>${escapeXml(summary.referenceDate)}</t></is></c></row>`,
+        `<row r="2"><c r="A2" t="inlineStr" s="28"><is><t>Peak guests</t></is></c><c r="B2" t="n" s="29"><v>${Number(summary.peakGuests) || 0}</v></c></row>`,
+        `<row r="3"><c r="A3" t="inlineStr" s="28"><is><t>Peak day</t></is></c><c r="B3" t="inlineStr" s="29"><is><t>${escapeXml(summary.peakDay || "-")}</t></is></c></row>`,
+        `<row r="4"><c r="A4" t="inlineStr" s="28"><is><t>Average guests</t></is></c><c r="B4" t="inlineStr" s="29"><is><t>${escapeXml(String(summary.averageGuests || "0.0"))}</t></is></c></row>`
+      ].join("") : "";
+
+      const headerRowNumber = 6;
+      const headerRow = `<row r="${headerRowNumber}" ht="22" customHeight="1">` + headers.map((label, i) => {
+        const ref = `${columnLetter(i)}${headerRowNumber}`;
+        return `<c r="${ref}" t="inlineStr" s="1"><is><t>${escapeXml(label)}</t></is></c>`;
+      }).join("") + `</row>`;
+
+      const bodyRows = rows.map((row, index) => {
+        const excelRow = index + headerRowNumber + 1;
+        return `<row r="${excelRow}">
+          <c r="A${excelRow}" t="inlineStr" s="3"><is><t>${escapeXml(row.date)}</t></is></c>
+          <c r="B${excelRow}" t="inlineStr" s="3"><is><t>${escapeXml(row.dayLabel || "")}</t></is></c>
+          <c r="C${excelRow}" t="n" s="30"><v>${Number(row.guestsPresent) || 0}</v></c>
+          <c r="D${excelRow}" t="n" s="31"><v>${Number(row.arrivals) || 0}</v></c>
+          <c r="E${excelRow}" t="n" s="32"><v>${Number(row.departures) || 0}</v></c>
+        </row>`;
+      }).join("");
+
+      const lastDataRow = Math.max(rows.length + headerRowNumber, headerRowNumber);
+      const dimensionRef = `A1:E${lastDataRow}`;
+      const autoFilterXml = rows.length ? `<autoFilter ref="A${headerRowNumber}:E${lastDataRow}"/>` : "";
+
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <dimension ref="${dimensionRef}"/>
+  <sheetViews><sheetView workbookViewId="0"><pane ySplit="${headerRowNumber}" topLeftCell="A${headerRowNumber + 1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+  <cols>${colsXml}</cols>
+  <sheetData>${summaryRows}<row r="5"></row>${headerRow}${bodyRows}</sheetData>
+  ${autoFilterXml}
+</worksheet>`;
+    }
+
+    function buildHotelWorkbookFiles(rows, dailyRows = []) {
       const sheetXml = buildHotelSheetXml(rows);
+      const dailySheetXml = buildHotelDailySheetXml(dailyRows.rows || dailyRows, dailyRows.summary || null);
             const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <fonts count="2">
@@ -2349,7 +2475,7 @@ td.right, th.right { white-space: nowrap !important; }
     </border>
   </borders>
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="28">
+  <cellXfs count="33">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center"/>
@@ -2438,6 +2564,21 @@ td.right, th.right { white-space: nowrap !important; }
     <xf numFmtId="0" fontId="0" fillId="5" borderId="4" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center"/>
     </xf>
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="left" vertical="center"/>
+    </xf>
+    <xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="left" vertical="center"/>
+    </xf>
+    <xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <xf numFmtId="0" fontId="0" fillId="5" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
   </cellXfs>
   <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
@@ -2451,6 +2592,7 @@ td.right, th.right { white-space: nowrap !important; }
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
   <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
   <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
   <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
   <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
@@ -2476,7 +2618,7 @@ td.right, th.right { white-space: nowrap !important; }
           name: "docProps/core.xml",
           content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <dc:title>Rooming List</dc:title>
+  <dc:title>Rooming List + Daily Presence</dc:title>
   <dc:creator>ChatGPT</dc:creator>
 </cp:coreProperties>`
         },
@@ -2485,7 +2627,8 @@ td.right, th.right { white-space: nowrap !important; }
           content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>`
         },
         {
@@ -2494,6 +2637,7 @@ td.right, th.right { white-space: nowrap !important; }
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <sheets>
     <sheet name="Rooming List" sheetId="1" r:id="rId1"/>
+    <sheet name="Daily Presence" sheetId="2" r:id="rId2"/>
   </sheets>
 </workbook>`
         },
@@ -2504,6 +2648,10 @@ td.right, th.right { white-space: nowrap !important; }
         {
           name: "xl/worksheets/sheet1.xml",
           content: sheetXml
+        },
+        {
+          name: "xl/worksheets/sheet2.xml",
+          content: dailySheetXml
         }
       ];
     }
@@ -2639,7 +2787,8 @@ td.right, th.right { white-space: nowrap !important; }
         return;
       }
 
-      const files = buildHotelWorkbookFiles(rows);
+      const dailyRows = buildHotelDailyPresenceRows(referenceDate);
+      const files = buildHotelWorkbookFiles(rows, dailyRows);
       const workbookErrors = ExportHotel.validateWorkbookFiles(files, rows);
       if (workbookErrors.length) {
         console.error("Hotel workbook validation failed:", workbookErrors);
